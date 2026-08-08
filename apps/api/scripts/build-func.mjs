@@ -14,7 +14,9 @@ import { fileURLToPath } from "node:url";
 
 const apiDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const repoRoot = dirname(dirname(apiDir));
-const outDir = join(repoRoot, ".vercel/output");
+// Vercel resolves the configured output directory from this project's root
+// (apps/api), so keep the Build Output API payload there.
+const outDir = join(apiDir, ".vercel/output");
 const funcDir = join(outDir, "functions/api/index.func");
 const bun = process.env.BUN_BIN || "bun";
 
@@ -35,7 +37,7 @@ const VENDOR_ROOTS = ["express"];
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(funcDir, { recursive: true });
 
-console.log("• bundling function with bun build...");
+console.log("â€¢ bundling function with bun build...");
 execSync(
 	[
 		`${bun} build api/index.ts`,
@@ -51,14 +53,14 @@ execSync(
 	},
 );
 
-console.log("• pinning NODE_ENV in the bundle...");
+console.log("â€¢ pinning NODE_ENV in the bundle...");
 const entry = join(funcDir, "index.mjs");
 writeFileSync(
 	entry,
 	`process.env.NODE_ENV ??= "production";\n${readFileSync(entry, "utf8")}`,
 );
 
-console.log("• vendoring runtime-resolved dependencies...");
+console.log("â€¢ vendoring runtime-resolved dependencies...");
 const bunStore = join(repoRoot, "node_modules/.bun");
 const stores = existsSync(bunStore) ? readdirSync(bunStore) : [];
 const funcNm = join(funcDir, "node_modules");
@@ -158,11 +160,15 @@ writeFileSync(
 	JSON.stringify({
 		version: 3,
 		routes: [{ src: "/(.*)", dest: "/api/index" }],
-		crons: [{ path: "/internal/sync/google", schedule: "*/5 * * * *" }],
+		crons: [
+			{ path: "/internal/sync/mailboxes", schedule: "0 5 * * *" },
+			{ path: "/internal/sync/rates", schedule: "0 6 * * *" },
+			{ path: "/internal/telemetry/rollup", schedule: "0 7 * * *" },
+		],
 	}),
 );
 
-console.log(`✓ built ${outDir}`);
+console.log(`âœ“ built ${outDir}`);
 
 const isProductionDeployment = process.env.VERCEL_ENV === "production";
 
@@ -174,19 +180,19 @@ const directDatabaseUrl = !isProductionDeployment
 		process.env.DATABASE_URL;
 
 if (!process.env.VERCEL) {
-	console.log("• not a Vercel build — skipping migrations");
+	console.log("â€¢ not a Vercel build â€” skipping migrations");
 } else if (!isProductionDeployment) {
 	console.log(
-		`• ${process.env.VERCEL_ENV || "non-production"} deployment — skipping migrations, only production applies them`,
+		`â€¢ ${process.env.VERCEL_ENV || "non-production"} deployment â€” skipping migrations, only production applies them`,
 	);
 } else if (!directDatabaseUrl) {
-	console.log("• no database URL at build time — skipping migrations");
+	console.log("â€¢ no database URL at build time â€” skipping migrations");
 } else {
-	console.log("• applying migrations (prisma migrate deploy)...");
+	console.log("â€¢ applying migrations (prisma migrate deploy)...");
 	execSync(`${bun} x prisma migrate deploy`, {
 		cwd: join(repoRoot, "packages/db"),
 		stdio: "inherit",
 		env: { ...process.env, DATABASE_URL: directDatabaseUrl },
 	});
-	console.log("✓ migrations applied");
+	console.log("âœ“ migrations applied");
 }
