@@ -17,7 +17,7 @@ const repoRoot = dirname(dirname(apiDir));
 // Vercel resolves the configured output directory from this project's root
 // (apps/api), so keep the Build Output API payload there.
 const outDir = join(apiDir, ".vercel/output");
-const funcDir = join(outDir, "functions/api/index.func");
+const funcDir = join(outDir, "functions/server.func");
 const bun = process.env.BUN_BIN || "bun";
 
 const EXTERNALS = [
@@ -159,7 +159,7 @@ writeFileSync(
 	join(outDir, "config.json"),
 	JSON.stringify({
 		version: 3,
-		routes: [{ src: "/(.*)", dest: "/api/index" }],
+		routes: [{ src: "/(.*)", dest: "/server" }],
 	}),
 );
 
