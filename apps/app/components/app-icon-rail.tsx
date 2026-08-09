@@ -71,7 +71,12 @@ const ITEMS: RailItem[] = [
 	},
 	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
 	{ title: "Projects", href: "/projects", icon: Task, match: "prefix" },
-	{ title: "Invoices", href: "/invoices", icon: Receipt, match: "prefix" },
+	{
+		title: "Invoices & AI Builder",
+		href: "/invoices",
+		icon: Receipt,
+		match: "prefix",
+	},
 	{
 		title: "BNS Online Banking",
 		href: "/banking",

@@ -70,3 +70,60 @@ export const invoiceScheduleInput = z.object({
 		.default([7, 3, 1, 0]),
 });
 export type InvoiceScheduleInput = z.infer<typeof invoiceScheduleInput>;
+
+export const invoiceAssistantStartInput = z
+	.object({
+		purpose: z.enum(["CLIENT_WORK", "GENERAL_KNOWLEDGE"]),
+		companyId: z.string().min(1).nullable().optional(),
+		newClient: z
+			.object({
+				name: z.string().trim().min(1).max(240),
+				domain: z.string().trim().max(240).nullable().optional(),
+				email: z.string().trim().email().nullable().optional(),
+				phone: z.string().trim().max(80).nullable().optional(),
+				staffNotes: z.string().trim().max(4000).nullable().optional(),
+			})
+			.nullable()
+			.optional(),
+	})
+	.superRefine((value, context) => {
+		if (
+			value.purpose === "CLIENT_WORK" &&
+			!value.companyId &&
+			!value.newClient
+		) {
+			context.addIssue({
+				code: "custom",
+				message:
+					"Choose an existing client or enter a new client before starting.",
+			});
+		}
+		if (
+			value.purpose === "GENERAL_KNOWLEDGE" &&
+			(value.companyId || value.newClient)
+		) {
+			context.addIssue({
+				code: "custom",
+				message: "General knowledge sessions cannot be linked to a client.",
+			});
+		}
+	});
+
+const assistantFileInput = z.object({
+	name: z.string().trim().min(1).max(255),
+	mediaType: z.string().trim().min(1).max(160),
+	contentBase64: z.string().min(1).max(30_000_000),
+});
+
+export const invoiceAssistantMessageInput = z.object({
+	sessionId: z.string().min(1),
+	prompt: z.string().trim().min(1).max(20_000),
+	files: z.array(assistantFileInput).max(12),
+});
+
+export const invoiceAssistantSessionInput = z.object({ id: z.string().min(1) });
+
+export const invoiceAssistantApproveInput = z.object({
+	actionId: z.string().min(1),
+	payload: z.record(z.string(), z.unknown()).optional(),
+});

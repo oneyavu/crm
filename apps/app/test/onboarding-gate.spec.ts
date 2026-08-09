@@ -156,39 +156,43 @@ describe("proxy", () => {
 		marketing("true");
 
 		expect(redirectedTo(await proxy(request("/")))).toBeNull();
-		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
-		expect(redirectedTo(await proxy(request(`/${SLUG}`)))).toBe("/sign-in");
+		expect(redirectedTo(await proxy(request("/staff-login")))).toBeNull();
+		expect(redirectedTo(await proxy(request("/sign-in")))).toBe("/staff-login");
+		expect(redirectedTo(await proxy(request(`/${SLUG}`)))).toBe("/staff-login");
 		expect(redirectedTo(await proxy(request(`/${SLUG}/companies`)))).toBe(
-			"/sign-in",
+			"/staff-login",
 		);
 	});
 
 	it("sends a stranger to sign in when the install has no landing page", async () => {
 		marketing(undefined);
 
-		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
-		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
+		expect(redirectedTo(await proxy(request("/")))).toBe("/staff-login");
+		expect(redirectedTo(await proxy(request("/staff-login")))).toBeNull();
 	});
 
 	it("never aims a redirect at the sign-in page itself", async () => {
 		marketing(undefined);
 		setup({ onboarded: false, configured: false });
 
-		expect(redirectedTo(await proxy(request("/sign-in")))).toBeNull();
+		expect(redirectedTo(await proxy(request("/staff-login")))).toBeNull();
 		expect(
 			redirectedTo(await proxy(request("/sign-in", [SESSION_COOKIE]))),
-		).toBeNull();
+		).toBe("/staff-login");
+		expect(redirectedTo(await proxy(request("/sign-in?method=google")))).toBe(
+			"/staff-login",
+		);
 		expect(
-			redirectedTo(await proxy(request("/sign-in?method=google"))),
+			redirectedTo(await proxy(request("/sign-in?callbackURL=/client"))),
 		).toBeNull();
 	});
 
 	it("reads the flag on every request, and only the literal true turns it on", async () => {
 		marketing("false");
-		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
+		expect(redirectedTo(await proxy(request("/")))).toBe("/staff-login");
 
 		marketing("1");
-		expect(redirectedTo(await proxy(request("/")))).toBe("/sign-in");
+		expect(redirectedTo(await proxy(request("/")))).toBe("/staff-login");
 
 		marketing("true");
 		expect(redirectedTo(await proxy(request("/")))).toBeNull();
@@ -206,7 +210,7 @@ describe("proxy", () => {
 					]),
 				),
 			),
-		).toBe("/sign-in");
+		).toBe("/staff-login");
 	});
 
 	it("gates a signed-in rep who has not answered the form", async () => {

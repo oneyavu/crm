@@ -6,6 +6,7 @@ import Logout from "@carbon/icons-react/es/Logout";
 import Menu from "@carbon/icons-react/es/Menu";
 import UserAvatar from "@carbon/icons-react/es/UserAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@crm/ui/components/avatar";
+import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
 	DropdownMenu,
@@ -59,6 +60,12 @@ export function AppHeader({ user }: { user: User }) {
 					</p>
 				</div>
 			</div>
+			<Badge
+				className="hidden border-emerald-500/30 bg-emerald-500/10 text-emerald-500 sm:inline-flex"
+				variant="outline"
+			>
+				STAFF WORKSPACE
+			</Badge>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">
 				<NotificationsMenu />

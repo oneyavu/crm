@@ -97,6 +97,8 @@ export const metricInput = z.object({
 export const pricingInput = z.object({
 	catalogItemId: z.string().min(1),
 	currency: z.string().length(3),
+	baseCostCents: z.number().int().min(0),
+	pricingUnit: z.string().trim().min(1).max(80),
 	implementationCostCents: z.number().int().min(0),
 	deliveryCostCents: z.number().int().min(0),
 	monthlyRunCostCents: z.number().int().min(0),
@@ -106,6 +108,81 @@ export const pricingInput = z.object({
 	targetMarginPct: z.number().min(0).max(100),
 	listPriceCents: z.number().int().min(0),
 	notes: z.string().trim().max(4000).nullable().optional(),
+	criteria: z
+		.array(
+			z.object({
+				id: z.string().optional(),
+				name: z.string().trim().min(1).max(160),
+				kind: z.enum(["FIXED", "PER_UNIT", "PERCENTAGE"]),
+				unitLabel: z.string().trim().min(1).max(80),
+				defaultQuantity: z.number().min(0).max(1_000_000),
+				unitCostCents: z.number().int().min(0),
+				percentage: z.number().min(0).max(100),
+				required: z.boolean(),
+				active: z.boolean(),
+			}),
+		)
+		.max(50),
+});
+
+const dealSheetLineInput = z.object({
+	catalogItemId: z.string().nullable().optional(),
+	description: z.string().trim().min(1).max(500),
+	quantity: z.number().positive().max(1_000_000),
+	unit: z.string().trim().min(1).max(80),
+	baseCostCents: z.number().int().min(0),
+	criteriaCostCents: z.number().int().min(0),
+	suggestedPriceCents: z.number().int().min(0),
+	marketLowCents: z.number().int().min(0).nullable().optional(),
+	marketMedianCents: z.number().int().min(0).nullable().optional(),
+	marketHighCents: z.number().int().min(0).nullable().optional(),
+	criteriaSnapshot: z
+		.array(
+			z.object({
+				name: z.string().max(160),
+				kind: z.string().max(40),
+				quantity: z.number().min(0),
+				unitCostCents: z.number().int().min(0).default(0),
+				percentage: z.number().min(0).max(100).default(0),
+				amountCents: z.number().int().min(0),
+			}),
+		)
+		.max(50),
+	researchRationale: z.string().trim().max(4000).nullable().optional(),
+});
+
+export const dealSheetInput = z.object({
+	id: z.string().optional(),
+	title: z.string().trim().min(1).max(240),
+	status: z.enum(["DRAFT", "REVIEW", "APPROVED", "ARCHIVED"]),
+	currency: z.string().trim().length(3),
+	marketRegion: z.string().trim().min(1).max(160),
+	companyId: z.string().nullable().optional(),
+	projectId: z.string().nullable().optional(),
+	contingencyPct: z.number().min(0).max(100),
+	discountPct: z.number().min(0).max(100),
+	taxPct: z.number().min(0).max(100),
+	targetMarginPct: z.number().min(0).max(95),
+	notes: z.string().trim().max(10_000).nullable().optional(),
+	lines: z.array(dealSheetLineInput).min(1).max(100),
+});
+
+export const marketResearchInput = z.object({
+	currency: z.string().trim().length(3),
+	marketRegion: z.string().trim().min(1).max(160),
+	lines: z
+		.array(
+			dealSheetLineInput.pick({
+				catalogItemId: true,
+				description: true,
+				quantity: true,
+				unit: true,
+				baseCostCents: true,
+				criteriaCostCents: true,
+			}),
+		)
+		.min(1)
+		.max(20),
 });
 
 export const documentInput = z.object({

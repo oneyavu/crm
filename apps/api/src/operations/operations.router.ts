@@ -13,11 +13,13 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	compensationInput,
 	dealAnalysisInput,
+	dealSheetInput,
 	documentInput,
 	entityIdInput,
 	expenseCategoryInput,
 	financialAccountInput,
 	forecastInput,
+	marketResearchInput,
 	messageTemplateInput,
 	metricInput,
 	pricingInput,
@@ -52,6 +54,9 @@ export class OperationsRouter {
 	}
 	@Query() documents(@Ctx() ctx: AuthedTrpcContext) {
 		return this.operations.documents(ctx.user.id);
+	}
+	@Query() dealSheets(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.dealSheets(ctx.user.id);
 	}
 
 	@Query({ input: entityIdInput })
@@ -121,6 +126,20 @@ export class OperationsRouter {
 		@Input() input: z.infer<typeof dealAnalysisInput>,
 	) {
 		return this.operations.analyzeDeal(input, ctx.user.id);
+	}
+	@Mutation({ input: dealSheetInput })
+	saveDealSheet(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof dealSheetInput>,
+	) {
+		return this.operations.saveDealSheet(input, ctx.user.id);
+	}
+	@Mutation({ input: marketResearchInput })
+	researchMarket(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof marketResearchInput>,
+	) {
+		return this.operations.researchMarket(input, ctx.user.id);
 	}
 
 	@Mutation({ input: forecastInput })

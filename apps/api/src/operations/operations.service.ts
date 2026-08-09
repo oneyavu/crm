@@ -4,6 +4,7 @@ import {
 	ForbiddenException,
 	Injectable,
 	NotFoundException,
+	ServiceUnavailableException,
 } from "@nestjs/common";
 import type { z } from "zod";
 import { OpenAiService } from "../ai/openai.service";
@@ -12,10 +13,12 @@ import { InjectDatabase } from "../database/database.constants";
 import type {
 	compensationInput,
 	dealAnalysisInput,
+	dealSheetInput,
 	documentInput,
 	expenseCategoryInput,
 	financialAccountInput,
 	forecastInput,
+	marketResearchInput,
 	messageTemplateInput,
 	metricInput,
 	pricingInput,
@@ -157,13 +160,18 @@ export class OperationsService {
 		const rows = await this.db.catalogItem.findMany({
 			where: { active: true },
 			orderBy: [{ category: "asc" }, { name: "asc" }],
-			include: { costProfile: true },
+			include: {
+				costProfile: {
+					include: { criteria: { orderBy: { position: "asc" } } },
+				},
+			},
 		});
 		return rows.map(({ costProfile, ...item }) => ({
 			...item,
 			costProfile: costProfile
 				? {
 						...costProfile,
+						baseCostCents: toCents(costProfile.baseCost) ?? 0,
 						implementationCostCents:
 							toCents(costProfile.implementationCost) ?? 0,
 						deliveryCostCents: toCents(costProfile.deliveryCost) ?? 0,
@@ -174,6 +182,12 @@ export class OperationsService {
 						internalHours: Number(costProfile.internalHours),
 						targetMarginPct: Number(costProfile.targetMarginPct),
 						listPriceCents: toCents(costProfile.listPrice) ?? 0,
+						criteria: costProfile.criteria.map((criterion) => ({
+							...criterion,
+							defaultQuantity: Number(criterion.defaultQuantity),
+							unitCostCents: toCents(criterion.unitCost) ?? 0,
+							percentage: Number(criterion.percentage),
+						})),
 					}
 				: null,
 		}));
@@ -401,6 +415,8 @@ export class OperationsService {
 		await this.assertAdmin(actorId);
 		const values = {
 			currency: input.currency.toUpperCase(),
+			baseCost: moneyValue(input.baseCostCents),
+			pricingUnit: input.pricingUnit,
 			implementationCost: moneyValue(input.implementationCostCents),
 			deliveryCost: moneyValue(input.deliveryCostCents),
 			monthlyRunCost: moneyValue(input.monthlyRunCostCents),
@@ -411,10 +427,32 @@ export class OperationsService {
 			listPrice: moneyValue(input.listPriceCents),
 			notes: input.notes || null,
 		};
-		const row = await this.db.catalogCostProfile.upsert({
-			where: { catalogItemId: input.catalogItemId },
-			create: { catalogItemId: input.catalogItemId, ...values },
-			update: values,
+		const row = await this.db.$transaction(async (tx) => {
+			const profile = await tx.catalogCostProfile.upsert({
+				where: { catalogItemId: input.catalogItemId },
+				create: { catalogItemId: input.catalogItemId, ...values },
+				update: values,
+			});
+			await tx.costingCriterion.deleteMany({
+				where: { catalogCostProfileId: profile.id },
+			});
+			if (input.criteria.length) {
+				await tx.costingCriterion.createMany({
+					data: input.criteria.map((criterion, position) => ({
+						catalogCostProfileId: profile.id,
+						name: criterion.name,
+						kind: criterion.kind,
+						unitLabel: criterion.unitLabel,
+						defaultQuantity: criterion.defaultQuantity,
+						unitCost: moneyValue(criterion.unitCostCents),
+						percentage: criterion.percentage,
+						required: criterion.required,
+						active: criterion.active,
+						position,
+					})),
+				});
+			}
+			return profile;
 		});
 		await this.audit(
 			"CatalogCostProfile",
@@ -425,6 +463,109 @@ export class OperationsService {
 			{ id: row.id, catalogItemId: row.catalogItemId },
 		);
 		return { id: row.id, catalogItemId: row.catalogItemId };
+	}
+
+	async dealSheets(actorId: string) {
+		await this.assertAdmin(actorId);
+		const rows = await this.db.dealSheet.findMany({
+			orderBy: { updatedAt: "desc" },
+			take: 100,
+			include: {
+				company: { select: { id: true, name: true } },
+				project: { select: { id: true, name: true } },
+				lines: { orderBy: { position: "asc" } },
+			},
+		});
+		return rows.map(serializeDealSheet);
+	}
+
+	async saveDealSheet(input: z.infer<typeof dealSheetInput>, actorId: string) {
+		await this.assertAdmin(actorId);
+		const totals = calculateDealSheet(input);
+		const row = await this.db.$transaction(async (tx) => {
+			const data = {
+				title: input.title,
+				status: input.status,
+				currency: input.currency.toUpperCase(),
+				marketRegion: input.marketRegion,
+				companyId: input.companyId || null,
+				projectId: input.projectId || null,
+				contingencyPct: input.contingencyPct,
+				discountPct: input.discountPct,
+				taxPct: input.taxPct,
+				targetMarginPct: input.targetMarginPct,
+				directCost: moneyValue(totals.directCostCents),
+				contingencyAmount: moneyValue(totals.contingencyAmountCents),
+				targetPrice: moneyValue(totals.targetPriceCents),
+				discountAmount: moneyValue(totals.discountAmountCents),
+				subtotal: moneyValue(totals.subtotalCents),
+				taxAmount: moneyValue(totals.taxAmountCents),
+				finalTotal: moneyValue(totals.finalTotalCents),
+				notes: input.notes || null,
+			};
+			const sheet = input.id
+				? await tx.dealSheet.update({ where: { id: input.id }, data })
+				: await tx.dealSheet.create({
+						data: {
+							...data,
+							reference: `DS-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
+							createdById: actorId,
+						},
+					});
+			await tx.dealSheetLine.deleteMany({ where: { dealSheetId: sheet.id } });
+			await tx.dealSheetLine.createMany({
+				data: input.lines.map((line, position) => {
+					const directCostCents = Math.round(
+						(line.baseCostCents + line.criteriaCostCents) * line.quantity,
+					);
+					return {
+						dealSheetId: sheet.id,
+						catalogItemId: line.catalogItemId || null,
+						description: line.description,
+						quantity: line.quantity,
+						unit: line.unit,
+						baseCost: moneyValue(line.baseCostCents),
+						criteriaCost: moneyValue(line.criteriaCostCents),
+						directCost: moneyValue(directCostCents),
+						suggestedPrice: moneyValue(line.suggestedPriceCents),
+						marketLow: nullableMoney(line.marketLowCents),
+						marketMedian: nullableMoney(line.marketMedianCents),
+						marketHigh: nullableMoney(line.marketHighCents),
+						criteriaSnapshot: json(line.criteriaSnapshot),
+						researchRationale: line.researchRationale || null,
+						position,
+					};
+				}),
+			});
+			return sheet;
+		});
+		await this.audit(
+			"DealSheet",
+			row.id,
+			input.id ? "UPDATE" : "CREATE",
+			actorId,
+			`${input.id ? "Updated" : "Created"} deal sheet ${row.reference}`,
+			{ id: row.id, reference: row.reference, ...totals },
+		);
+		return { id: row.id, reference: row.reference, totals };
+	}
+
+	async researchMarket(
+		input: z.infer<typeof marketResearchInput>,
+		actorId: string,
+	) {
+		await this.assertAdmin(actorId);
+		const result = await this.ai.researchWithWeb(
+			"You are a commercial market researcher. Search current public sources for comparable software and professional-service prices. Return ONLY valid JSON with keys summary and lines. lines must contain index, low, median, high, rationale. Monetary values must be plain numbers in the requested currency. Prefer vendor pricing pages and credible current benchmarks. If evidence is weak, say so and use null prices. Never change or calculate the user's final deal price.",
+			`Market: ${input.marketRegion}\nCurrency: ${input.currency.toUpperCase()}\nOfferings: ${JSON.stringify(input.lines)}`,
+		);
+		const parsed = parseResearchJson(result.text);
+		return {
+			summary: parsed.summary,
+			lines: parsed.lines,
+			sources: result.sources,
+			researchedAt: new Date().toISOString(),
+		};
 	}
 	async saveDocument(input: z.infer<typeof documentInput>, actorId: string) {
 		await this.assertAdmin(actorId);
@@ -504,42 +645,77 @@ export class OperationsService {
 		await this.assertAdmin(actorId);
 		const current = await this.overview(actorId);
 		const monthly: Array<{
-			month: number; leads: number; customers: number; revenueCents: number;
-			deliveryCostCents: number; acquisitionCostCents: number;
-			operatingCostCents: number; profitCents: number; cashCents: number;
+			month: number;
+			leads: number;
+			customers: number;
+			revenueCents: number;
+			deliveryCostCents: number;
+			acquisitionCostCents: number;
+			operatingCostCents: number;
+			profitCents: number;
+			cashCents: number;
 		}> = [];
 		let cash = input.cashOnHandCents;
 		let recurringRevenue = Math.max(0, Math.round(current.collectedCents / 12));
 		let cumulativeProfit = 0;
 		for (let month = 1; month <= input.months; month += 1) {
-			const leads = input.monthlyLeads * (1 + input.monthlyGrowthPct / 100) ** (month - 1);
+			const leads =
+				input.monthlyLeads * (1 + input.monthlyGrowthPct / 100) ** (month - 1);
 			const customers = leads * (input.conversionPct / 100);
 			const newRevenue = Math.round(customers * input.averageDealCents);
-			recurringRevenue = Math.max(0, Math.round(recurringRevenue * (1 - input.monthlyChurnPct / 100)));
+			recurringRevenue = Math.max(
+				0,
+				Math.round(recurringRevenue * (1 - input.monthlyChurnPct / 100)),
+			);
 			const revenue = newRevenue + recurringRevenue;
-			const deliveryCost = Math.round(revenue * (1 - input.grossMarginPct / 100));
-			const acquisitionCost = Math.round(customers * input.acquisitionCostCents);
-			const operatingCost = input.fixedOperatingCostCents + input.payrollCostCents;
+			const deliveryCost = Math.round(
+				revenue * (1 - input.grossMarginPct / 100),
+			);
+			const acquisitionCost = Math.round(
+				customers * input.acquisitionCostCents,
+			);
+			const operatingCost =
+				input.fixedOperatingCostCents + input.payrollCostCents;
 			const profit = revenue - deliveryCost - acquisitionCost - operatingCost;
 			cash += profit;
 			cumulativeProfit += profit;
-			monthly.push({ month, leads: Math.round(leads), customers: Number(customers.toFixed(2)), revenueCents: revenue, deliveryCostCents: deliveryCost, acquisitionCostCents: acquisitionCost, operatingCostCents: operatingCost, profitCents: profit, cashCents: cash });
+			monthly.push({
+				month,
+				leads: Math.round(leads),
+				customers: Number(customers.toFixed(2)),
+				revenueCents: revenue,
+				deliveryCostCents: deliveryCost,
+				acquisitionCostCents: acquisitionCost,
+				operatingCostCents: operatingCost,
+				profitCents: profit,
+				cashCents: cash,
+			});
 			recurringRevenue += Math.round(newRevenue * 0.15);
 		}
-		const breakEven = monthly.find((row) => row.profitCents >= 0)?.month ?? null;
-		const cacPaybackMonths = input.averageDealCents > 0 && input.grossMarginPct > 0
-			? input.acquisitionCostCents / (input.averageDealCents * (input.grossMarginPct / 100))
-			: null;
+		const breakEven =
+			monthly.find((row) => row.profitCents >= 0)?.month ?? null;
+		const cacPaybackMonths =
+			input.averageDealCents > 0 && input.grossMarginPct > 0
+				? input.acquisitionCostCents /
+					(input.averageDealCents * (input.grossMarginPct / 100))
+				: null;
 		return {
 			current,
 			monthly,
 			summary: {
-				projectedRevenueCents: monthly.reduce((sum, row) => sum + row.revenueCents, 0),
+				projectedRevenueCents: monthly.reduce(
+					(sum, row) => sum + row.revenueCents,
+					0,
+				),
 				projectedProfitCents: cumulativeProfit,
 				endingCashCents: cash,
 				breakEvenMonth: breakEven,
-				cacPaybackMonths: cacPaybackMonths == null ? null : Number(cacPaybackMonths.toFixed(2)),
-				minimumCashCents: Math.min(input.cashOnHandCents, ...monthly.map((row) => row.cashCents)),
+				cacPaybackMonths:
+					cacPaybackMonths == null ? null : Number(cacPaybackMonths.toFixed(2)),
+				minimumCashCents: Math.min(
+					input.cashOnHandCents,
+					...monthly.map((row) => row.cashCents),
+				),
 			},
 		};
 	}
@@ -636,6 +812,141 @@ function requiredDate(value: string): Date {
 function moneyValue(cents: number) {
 	return decimalFromCents(cents) ?? 0;
 }
+function nullableMoney(cents: number | null | undefined) {
+	return cents == null ? null : moneyValue(cents);
+}
 function json(value: unknown): Prisma.InputJsonValue {
 	return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function calculateDealSheet(input: z.infer<typeof dealSheetInput>) {
+	const directCostCents = input.lines.reduce(
+		(sum, line) =>
+			sum +
+			Math.round((line.baseCostCents + line.criteriaCostCents) * line.quantity),
+		0,
+	);
+	const contingencyAmountCents = Math.round(
+		directCostCents * (input.contingencyPct / 100),
+	);
+	const costWithContingency = directCostCents + contingencyAmountCents;
+	const marginRate = input.targetMarginPct / 100;
+	const calculatedTarget = Math.round(costWithContingency / (1 - marginRate));
+	const lineSuggestedTotal = input.lines.reduce(
+		(sum, line) => sum + Math.round(line.suggestedPriceCents * line.quantity),
+		0,
+	);
+	const targetPriceCents = Math.max(calculatedTarget, lineSuggestedTotal);
+	const discountAmountCents = Math.round(
+		targetPriceCents * (input.discountPct / 100),
+	);
+	const subtotalCents = targetPriceCents - discountAmountCents;
+	const taxAmountCents = Math.round(subtotalCents * (input.taxPct / 100));
+	return {
+		directCostCents,
+		contingencyAmountCents,
+		targetPriceCents,
+		discountAmountCents,
+		subtotalCents,
+		taxAmountCents,
+		finalTotalCents: subtotalCents + taxAmountCents,
+	};
+}
+
+function serializeDealSheet(row: {
+	id: string;
+	reference: string;
+	title: string;
+	currency: string;
+	directCost: Prisma.Decimal;
+	contingencyAmount: Prisma.Decimal;
+	targetPrice: Prisma.Decimal;
+	discountAmount: Prisma.Decimal;
+	subtotal: Prisma.Decimal;
+	taxAmount: Prisma.Decimal;
+	finalTotal: Prisma.Decimal;
+	contingencyPct: Prisma.Decimal;
+	discountPct: Prisma.Decimal;
+	taxPct: Prisma.Decimal;
+	targetMarginPct: Prisma.Decimal;
+	lines: Array<{
+		quantity: Prisma.Decimal;
+		baseCost: Prisma.Decimal;
+		criteriaCost: Prisma.Decimal;
+		directCost: Prisma.Decimal;
+		suggestedPrice: Prisma.Decimal;
+		marketLow: Prisma.Decimal | null;
+		marketMedian: Prisma.Decimal | null;
+		marketHigh: Prisma.Decimal | null;
+		[key: string]: unknown;
+	}>;
+	[key: string]: unknown;
+}) {
+	return {
+		...row,
+		contingencyPct: Number(row.contingencyPct),
+		discountPct: Number(row.discountPct),
+		taxPct: Number(row.taxPct),
+		targetMarginPct: Number(row.targetMarginPct),
+		directCostCents: toCents(row.directCost) ?? 0,
+		contingencyAmountCents: toCents(row.contingencyAmount) ?? 0,
+		targetPriceCents: toCents(row.targetPrice) ?? 0,
+		discountAmountCents: toCents(row.discountAmount) ?? 0,
+		subtotalCents: toCents(row.subtotal) ?? 0,
+		taxAmountCents: toCents(row.taxAmount) ?? 0,
+		finalTotalCents: toCents(row.finalTotal) ?? 0,
+		lines: row.lines.map((line) => ({
+			...line,
+			quantity: Number(line.quantity),
+			baseCostCents: toCents(line.baseCost) ?? 0,
+			criteriaCostCents: toCents(line.criteriaCost) ?? 0,
+			directCostCents: toCents(line.directCost) ?? 0,
+			suggestedPriceCents: toCents(line.suggestedPrice) ?? 0,
+			marketLowCents: toCents(line.marketLow),
+			marketMedianCents: toCents(line.marketMedian),
+			marketHighCents: toCents(line.marketHigh),
+		})),
+	};
+}
+
+function parseResearchJson(text: string): {
+	summary: string;
+	lines: Array<{
+		index: number;
+		low: number | null;
+		median: number | null;
+		high: number | null;
+		rationale: string;
+	}>;
+} {
+	try {
+		const raw = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+		const value = JSON.parse(raw) as { summary?: unknown; lines?: unknown };
+		const lines = Array.isArray(value.lines) ? value.lines : [];
+		return {
+			summary:
+				typeof value.summary === "string"
+					? value.summary
+					: "Market research completed.",
+			lines: lines.map((entry, index) => {
+				const item = entry as Record<string, unknown>;
+				const amount = (key: string) =>
+					typeof item[key] === "number" && Number.isFinite(item[key])
+						? Math.max(0, Math.round(item[key] as number))
+						: null;
+				return {
+					index:
+						typeof item.index === "number" ? Math.round(item.index) : index,
+					low: amount("low"),
+					median: amount("median"),
+					high: amount("high"),
+					rationale: typeof item.rationale === "string" ? item.rationale : "",
+				};
+			}),
+		};
+	} catch {
+		throw new ServiceUnavailableException(
+			"Market research returned an invalid format. Please try again.",
+		);
+	}
 }

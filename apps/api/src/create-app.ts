@@ -15,6 +15,7 @@ export async function createApp(): Promise<NestExpressApplication> {
 		{ bodyParser: false, logger: new ContextLogger() },
 	);
 
+	app.disable("x-powered-by");
 	app.use(helmet());
 	app.useGlobalPipes(
 		new ValidationPipe({

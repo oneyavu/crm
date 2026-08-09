@@ -11,6 +11,10 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
+	invoiceAssistantApproveInput,
+	invoiceAssistantMessageInput,
+	invoiceAssistantSessionInput,
+	invoiceAssistantStartInput,
 	invoiceCreateInput,
 	invoiceDuplicateInput,
 	invoiceIdInput,
@@ -85,5 +89,34 @@ export class InvoicesRouter {
 		@Input() input: z.infer<typeof invoiceScheduleInput>,
 	) {
 		return this.invoices.saveSchedule(input, ctx.user.id);
+	}
+
+	@Mutation({ input: invoiceAssistantStartInput })
+	startAssistant(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceAssistantStartInput>,
+	) {
+		return this.invoices.startAssistant(input, ctx.user.id);
+	}
+
+	@Query({ input: invoiceAssistantSessionInput })
+	assistantSession(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.invoices.assistantSession(id, ctx.user.id);
+	}
+
+	@Mutation({ input: invoiceAssistantMessageInput })
+	assistantMessage(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceAssistantMessageInput>,
+	) {
+		return this.invoices.assistantMessage(input, ctx.user.id);
+	}
+
+	@Mutation({ input: invoiceAssistantApproveInput })
+	approveAssistantAction(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceAssistantApproveInput>,
+	) {
+		return this.invoices.approveAssistantAction(input, ctx.user.id);
 	}
 }

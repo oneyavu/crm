@@ -41,12 +41,16 @@ export function SocialSignIn({
 			"https://onevayu.com/service-portal/";
 		const callbackURL =
 			clientPortal && embedded ? publicPortalURL : `${origin}${callbackPath}`;
+		const staffLoginPath =
+			window.location.pathname === "/staff-login" ? "/staff-login" : "/sign-in";
 
 		const { data, error } = await signIn.social({
 			provider,
 			callbackURL,
 			errorCallbackURL:
-				clientPortal && embedded ? publicPortalURL : `${origin}/sign-in`,
+				clientPortal && embedded
+					? publicPortalURL
+					: `${origin}${staffLoginPath}`,
 			disableRedirect: embedded,
 		});
 

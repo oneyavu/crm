@@ -11,5 +11,5 @@ export async function signOutAndRedirect() {
 		return;
 	}
 
-	window.location.assign("/sign-in");
+	window.location.assign("/staff-login");
 }

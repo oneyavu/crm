@@ -13,7 +13,7 @@ export async function requireSession(): Promise<Session> {
 	const session = await getSession();
 
 	if (!session) {
-		redirect("/sign-in");
+		redirect("/staff-login");
 	}
 
 	return session;

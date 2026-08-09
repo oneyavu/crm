@@ -13,6 +13,7 @@ import { workspaceUrl } from "@/lib/workspace-url";
 const LANDING_PATH = "/";
 
 const SIGN_IN_PATH = "/sign-in";
+const STAFF_SIGN_IN_PATH = "/staff-login";
 
 const UNGATED = [
 	"/grant-access",
@@ -40,13 +41,23 @@ const SECTIONS = [
 export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
-	if (pathname === SIGN_IN_PATH) return NextResponse.next();
+	if (pathname === STAFF_SIGN_IN_PATH) {
+		const internal = request.nextUrl.clone();
+		internal.pathname = SIGN_IN_PATH;
+		return NextResponse.rewrite(internal);
+	}
+
+	if (pathname === SIGN_IN_PATH) {
+		const callbackURL = request.nextUrl.searchParams.get("callbackURL");
+		if (callbackURL?.startsWith("/client")) return NextResponse.next();
+		return sendTo(STAFF_SIGN_IN_PATH, request);
+	}
 
 	if (
 		getSessionCookie(request, { cookiePrefix: AUTH_COOKIE_PREFIX }) === null
 	) {
 		if (isPublic(pathname) || isUngated(pathname)) return NextResponse.next();
-		const signIn = new URL(SIGN_IN_PATH, request.nextUrl);
+		const signIn = new URL(STAFF_SIGN_IN_PATH, request.nextUrl);
 		if (isUnder(pathname, "/client")) {
 			signIn.searchParams.set(
 				"callbackURL",

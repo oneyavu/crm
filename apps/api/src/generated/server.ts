@@ -25,10 +25,10 @@ import { dashboardSummaryInput } from "../dashboard/dashboard.contracts";
 import { dealListInput, dealIdInput, dealCreateInput, dealUpdateArgs, setStageInput, dealContactsInput, dealAttachContactInput, dealDetachContactInput, dealContactRoleInput, dealBulkOwnerInput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
 import { fieldListInput, fieldByKeyInput, fieldIdInput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput } from "../fields/fields.contracts";
 import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInput } from "../google/google.contracts";
-import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput, invoiceDuplicateInput, invoiceScheduleInput } from "../invoices/invoices.contracts";
+import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput, invoiceDuplicateInput, invoiceScheduleInput, invoiceAssistantStartInput, invoiceAssistantSessionInput, invoiceAssistantMessageInput, invoiceAssistantApproveInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
-import { entityIdInput, expenseCategoryInput, messageTemplateInput, financialAccountInput, staffProfileInput, compensationInput, metricInput, pricingInput, documentInput, dealAnalysisInput, forecastInput } from "../operations/operations.contracts";
+import { entityIdInput, expenseCategoryInput, messageTemplateInput, financialAccountInput, staffProfileInput, compensationInput, metricInput, pricingInput, documentInput, dealAnalysisInput, dealSheetInput, marketResearchInput, forecastInput } from "../operations/operations.contracts";
 import { paperclipAgentInput, paperclipInstructionInput, paperclipApprovalInput, paperclipWorkflowInput } from "../paperclip/paperclip.contracts";
 import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, portalLiveChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput, projectPhaseCreateInput, projectPhaseUpdateInput, projectTaskCommentCreateInput, projectTaskDependencyInput, projectTimeEntryCreateInput } from "../projects/projects.contracts";
@@ -408,7 +408,19 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["duplicate"]>>),
     saveSchedule: publicProcedure
       .input(invoiceScheduleInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["saveSchedule"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["saveSchedule"]>>),
+    startAssistant: publicProcedure
+      .input(invoiceAssistantStartInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["startAssistant"]>>),
+    assistantSession: publicProcedure
+      .input(invoiceAssistantSessionInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["assistantSession"]>>),
+    assistantMessage: publicProcedure
+      .input(invoiceAssistantMessageInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["assistantMessage"]>>),
+    approveAssistantAction: publicProcedure
+      .input(invoiceAssistantApproveInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["approveAssistantAction"]>>)
     }),
   microsoft: t.router({
     status: publicProcedure
@@ -450,6 +462,8 @@ const appRouter = t.router({
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["pricing"]>>),
     documents: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["documents"]>>),
+    dealSheets: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["dealSheets"]>>),
     document: publicProcedure
       .input(entityIdInput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["document"]>>),
@@ -480,6 +494,12 @@ const appRouter = t.router({
     analyzeDeal: publicProcedure
       .input(dealAnalysisInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["analyzeDeal"]>>),
+    saveDealSheet: publicProcedure
+      .input(dealSheetInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["saveDealSheet"]>>),
+    researchMarket: publicProcedure
+      .input(marketResearchInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["researchMarket"]>>),
     forecast: publicProcedure
       .input(forecastInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<OperationsRouter["forecast"]>>),
