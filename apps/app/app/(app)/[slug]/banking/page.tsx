@@ -28,7 +28,7 @@ export default async function BankingPage() {
 				<PageShellHeading>
 					<PageShellTitle>BNS Online Banking</PageShellTitle>
 					<PageShellDescription>
-						A secure same-tab handoff to Scotiabank Jamaica Small Business.
+						A secure handoff to Scotiabank Jamaica Small Business.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
@@ -45,9 +45,9 @@ export default async function BankingPage() {
 							</h2>
 							<p className="mt-4 max-w-2xl text-pretty text-muted-foreground leading-6">
 								Review Scotiabank small-business services, follow its links and
-								sign in through the bank&apos;s official website. The handoff
-								stays in this browser tab; no popup or additional window is
-								opened.
+								sign in through the bank&apos;s official website. Scotiabank
+								opens in a separate tab while this VAYU banking workspace stays
+								open.
 							</p>
 						</div>
 
@@ -67,7 +67,11 @@ export default async function BankingPage() {
 							</div>
 
 							<Button asChild className="min-w-56">
-								<a href={SCOTIABANK_SMALL_BUSINESS}>
+								<a
+									href={SCOTIABANK_SMALL_BUSINESS}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
 									Continue to Scotiabank
 									<Icon icon={Launch} />
 								</a>
@@ -78,8 +82,8 @@ export default async function BankingPage() {
 					<p className="max-w-3xl text-muted-foreground text-sm leading-6">
 						Scotiabank permits its pages to be framed only by Scotiabank-owned
 						domains. For your security, the bank page cannot remain inside the
-						CRM frame. Use your browser&apos;s Back button to return to VAYU
-						after banking.
+						CRM frame. The official bank site opens separately, and this VAYU
+						workspace remains available here.
 					</p>
 				</section>
 			</PageShellContent>
