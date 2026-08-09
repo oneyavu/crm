@@ -14,9 +14,14 @@ import {
 	projectCreateInput,
 	projectIdInput,
 	projectListInput,
+	projectPhaseCreateInput,
+	projectPhaseUpdateInput,
+	projectTaskCommentCreateInput,
 	projectTaskCreateInput,
+	projectTaskDependencyInput,
 	projectTaskIdInput,
 	projectTaskUpdateInput,
+	projectTimeEntryCreateInput,
 	projectUpdateInput,
 } from "./projects.contracts";
 import { ProjectsService } from "./projects.service";
@@ -86,5 +91,58 @@ export class ProjectsRouter {
 	@Mutation({ input: projectTaskIdInput })
 	async deleteTask(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.projects.deleteTask(id, ctx.user.id);
+	}
+
+	@Mutation({ input: projectPhaseCreateInput })
+	async createPhase(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectPhaseCreateInput>,
+	) {
+		return this.projects.createPhase(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectPhaseUpdateInput })
+	async updatePhase(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectPhaseUpdateInput>,
+	) {
+		return this.projects.updatePhase(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectIdInput })
+	async deletePhase(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.projects.deletePhase(id, ctx.user.id);
+	}
+
+	@Mutation({ input: projectTaskCommentCreateInput })
+	async addTaskComment(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectTaskCommentCreateInput>,
+	) {
+		return this.projects.addTaskComment(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectTaskDependencyInput })
+	async addDependency(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectTaskDependencyInput>,
+	) {
+		return this.projects.addDependency(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectTaskDependencyInput })
+	async removeDependency(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectTaskDependencyInput>,
+	) {
+		return this.projects.removeDependency(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectTimeEntryCreateInput })
+	async logTime(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectTimeEntryCreateInput>,
+	) {
+		return this.projects.logTime(input, ctx.user.id);
 	}
 }

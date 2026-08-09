@@ -13,6 +13,7 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	invitationInput,
 	inviteMemberInput,
+	memberIdInput,
 	memberListInput,
 	setMemberRoleInput,
 	updateWorkspaceInput,
@@ -53,6 +54,14 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof setMemberRoleInput>,
 	) {
 		return this.workspace.setMemberRole(ctx.user.id, input);
+	}
+
+	@Mutation({ input: memberIdInput })
+	async removeMember(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("memberId") memberId: string,
+	) {
+		return this.workspace.removeMember(ctx.user.id, memberId);
 	}
 
 	@Query()

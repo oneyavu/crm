@@ -1,6 +1,17 @@
 "use client";
 
 import OverflowMenuHorizontal from "@carbon/icons-react/es/OverflowMenuHorizontal";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@crm/ui/components/alert-dialog";
 import { Button } from "@crm/ui/components/button";
 import {
 	DataTable,
@@ -41,6 +52,7 @@ type MemberRow = RouterOutputs["workspace"]["members"]["rows"][number];
 function columns(
 	canChangeRoles: boolean,
 	onChangeRole: (member: MemberRow, role: Role) => void,
+	onRemove: (member: MemberRow) => void,
 	pending: boolean,
 ): DataTableColumn<MemberRow>[] {
 	return [
@@ -128,6 +140,14 @@ function columns(
 									{ROLE_LABEL[role]}
 								</DropdownMenuItem>
 							))}
+							{!row.isViewer ? (
+								<DropdownMenuItem
+									variant="destructive"
+									onSelect={() => onRemove(row)}
+								>
+									<TrashCan /> Remove staff access
+								</DropdownMenuItem>
+							) : null}
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : null,
@@ -151,6 +171,7 @@ export function MembersTable() {
 	});
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<Role>("member");
+	const [removingMember, setRemovingMember] = useState<MemberRow | null>(null);
 	const invite = useMutation(
 		trpc.workspace.inviteMember.mutationOptions({
 			onSuccess: async (result) => {
@@ -181,6 +202,17 @@ export function MembersTable() {
 			onSuccess: async () => {
 				await cache.workspace();
 				toast.success("Role changed.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const removeMember = useMutation(
+		trpc.workspace.removeMember.mutationOptions({
+			onSuccess: async (removed) => {
+				setRemovingMember(null);
+				await cache.workspace();
+				await members.refetch();
+				toast.success(`${removed.name}'s staff access was removed.`);
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -271,7 +303,8 @@ export function MembersTable() {
 				columns={columns(
 					workspace.data?.canChangeRoles ?? false,
 					(member, role) => setRole.mutate({ memberId: member.id, role }),
-					setRole.isPending,
+					setRemovingMember,
+					setRole.isPending || removeMember.isPending,
 				)}
 				rows={members.data?.rows ?? []}
 				total={members.data?.total ?? 0}
@@ -281,6 +314,34 @@ export function MembersTable() {
 				loading={members.isFetching}
 				empty="Nobody matches this view."
 			/>
+			<AlertDialog
+				open={Boolean(removingMember)}
+				onOpenChange={(open) => !open && setRemovingMember(null)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Remove staff access?</AlertDialogTitle>
+						<AlertDialogDescription>
+							{removingMember?.name} will immediately lose internal CRM access
+							and project assignments. Their client contact or portal record, if
+							one exists, will remain separate and unchanged.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							disabled={removeMember.isPending}
+							onClick={() =>
+								removingMember &&
+								removeMember.mutate({ memberId: removingMember.id })
+							}
+						>
+							Remove staff access
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

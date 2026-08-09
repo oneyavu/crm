@@ -25,8 +25,13 @@ import {
 import type {
 	ProjectCreateInput,
 	ProjectListInput,
+	ProjectPhaseCreateInput,
+	ProjectPhaseUpdateInput,
+	ProjectTaskCommentCreateInput,
 	ProjectTaskCreateInput,
+	ProjectTaskDependencyInput,
 	ProjectTaskUpdateInput,
+	ProjectTimeEntryCreateInput,
 	ProjectUpdateInput,
 } from "./projects.contracts";
 
@@ -144,6 +149,42 @@ export class ProjectsService {
 					orderBy: { createdAt: "asc" },
 					select: { role: true, user: { select: USER_SELECT } },
 				},
+				phases: {
+					orderBy: { position: "asc" },
+					select: {
+						id: true,
+						name: true,
+						color: true,
+						position: true,
+						startDate: true,
+						dueDate: true,
+						clientVisible: true,
+					},
+				},
+				milestones: {
+					orderBy: { position: "asc" },
+					select: {
+						id: true,
+						title: true,
+						dueDate: true,
+						completedAt: true,
+						clientVisible: true,
+					},
+				},
+				timeEntries: {
+					orderBy: { startedAt: "desc" },
+					take: 100,
+					select: {
+						id: true,
+						taskId: true,
+						description: true,
+						minutes: true,
+						billable: true,
+						approved: true,
+						startedAt: true,
+						staffUser: { select: USER_SELECT },
+					},
+				},
 				tasks: {
 					orderBy: [
 						{ status: "asc" },
@@ -158,8 +199,29 @@ export class ProjectsService {
 						priority: true,
 						position: true,
 						dueDate: true,
+						startDate: true,
 						completedAt: true,
+						progress: true,
+						estimatedMinutes: true,
+						clientVisible: true,
+						parentTaskId: true,
+						phase: { select: { id: true, name: true, color: true } },
 						assignee: { select: USER_SELECT },
+						blockedBy: {
+							select: {
+								blockedBy: { select: { id: true, title: true, status: true } },
+							},
+						},
+						comments: {
+							orderBy: { createdAt: "asc" },
+							select: {
+								id: true,
+								body: true,
+								internal: true,
+								createdAt: true,
+								author: { select: USER_SELECT },
+							},
+						},
 						createdAt: true,
 					},
 				},
@@ -175,11 +237,30 @@ export class ProjectsService {
 			dueDate: project.dueDate?.toISOString() ?? null,
 			createdAt: project.createdAt.toISOString(),
 			updatedAt: project.updatedAt.toISOString(),
+			phases: project.phases.map((phase) => ({
+				...phase,
+				startDate: phase.startDate?.toISOString() ?? null,
+				dueDate: phase.dueDate?.toISOString() ?? null,
+			})),
+			milestones: project.milestones.map((milestone) => ({
+				...milestone,
+				dueDate: milestone.dueDate?.toISOString() ?? null,
+				completedAt: milestone.completedAt?.toISOString() ?? null,
+			})),
+			timeEntries: project.timeEntries.map((entry) => ({
+				...entry,
+				startedAt: entry.startedAt.toISOString(),
+			})),
 			tasks: project.tasks.map((task) => ({
 				...task,
+				startDate: task.startDate?.toISOString() ?? null,
 				dueDate: task.dueDate?.toISOString() ?? null,
 				completedAt: task.completedAt?.toISOString() ?? null,
 				createdAt: task.createdAt.toISOString(),
+				comments: task.comments.map((comment) => ({
+					...comment,
+					createdAt: comment.createdAt.toISOString(),
+				})),
 			})),
 		};
 	}
@@ -342,6 +423,12 @@ export class ProjectsService {
 			}))
 		)
 			throw new ForbiddenException("This project is not assigned to you.");
+		await this.assertStaffAssignee(input.assigneeId);
+		await this.assertTaskLinks(
+			input.projectId,
+			input.phaseId,
+			input.parentTaskId,
+		);
 		const task = await this.db.projectTask.create({
 			data: {
 				projectId: input.projectId,
@@ -351,6 +438,12 @@ export class ProjectsService {
 				status: input.status,
 				priority: input.priority,
 				dueDate: date(input.dueDate),
+				startDate: date(input.startDate),
+				phaseId: input.phaseId || null,
+				parentTaskId: input.parentTaskId || null,
+				estimatedMinutes: input.estimatedMinutes,
+				progress: input.progress,
+				clientVisible: input.clientVisible,
 				createdById: actingUserId,
 				position: await this.db.projectTask.count({
 					where: { projectId: input.projectId },
@@ -394,6 +487,19 @@ export class ProjectsService {
 			throw new ForbiddenException(
 				"This task is not assigned to your project.",
 			);
+		await this.assertStaffAssignee(input.assigneeId);
+		const existingTask = await this.db.projectTask.findUnique({
+			where: { id: input.id },
+			select: { projectId: true },
+		});
+		if (!existingTask)
+			throw new NotFoundException(`No task with id ${input.id}.`);
+		await this.assertTaskLinks(
+			existingTask.projectId,
+			input.phaseId,
+			input.parentTaskId,
+			input.id,
+		);
 		const task = await this.db.projectTask.update({
 			where: { id: input.id },
 			data: {
@@ -408,9 +514,27 @@ export class ProjectsService {
 				...(input.dueDate !== undefined
 					? { dueDate: date(input.dueDate) }
 					: {}),
+				...(input.startDate !== undefined
+					? { startDate: date(input.startDate) }
+					: {}),
+				...(input.phaseId !== undefined
+					? { phaseId: input.phaseId || null }
+					: {}),
+				...(input.parentTaskId !== undefined
+					? { parentTaskId: input.parentTaskId || null }
+					: {}),
+				...(input.estimatedMinutes !== undefined
+					? { estimatedMinutes: input.estimatedMinutes }
+					: {}),
+				...(input.progress !== undefined ? { progress: input.progress } : {}),
+				...(input.clientVisible !== undefined
+					? { clientVisible: input.clientVisible }
+					: {}),
 				...(input.status !== undefined
 					? {
 							status: input.status,
+							progress:
+								input.status === ProjectTaskStatus.DONE ? 100 : input.progress,
 							completedAt:
 								input.status === ProjectTaskStatus.DONE ? new Date() : null,
 						}
@@ -461,6 +585,208 @@ export class ProjectsService {
 			}
 			throw error;
 		}
+	}
+
+	async createPhase(input: ProjectPhaseCreateInput, actorId: string) {
+		await this.assertProjectAccess(input.projectId, actorId);
+		return this.db.projectPhase.create({
+			data: {
+				projectId: input.projectId,
+				name: input.name.trim(),
+				color: input.color,
+				startDate: date(input.startDate),
+				dueDate: date(input.dueDate),
+				clientVisible: input.clientVisible,
+				position: await this.db.projectPhase.count({
+					where: { projectId: input.projectId },
+				}),
+			},
+			select: { id: true, projectId: true, name: true },
+		});
+	}
+
+	async updatePhase(input: ProjectPhaseUpdateInput, actorId: string) {
+		const phase = await this.db.projectPhase.findUnique({
+			where: { id: input.id },
+			select: { projectId: true },
+		});
+		if (!phase) throw new NotFoundException(`No phase with id ${input.id}.`);
+		await this.assertProjectAccess(phase.projectId, actorId);
+		return this.db.projectPhase.update({
+			where: { id: input.id },
+			data: {
+				...(input.name !== undefined ? { name: input.name.trim() } : {}),
+				...(input.color !== undefined ? { color: input.color } : {}),
+				...(input.startDate !== undefined
+					? { startDate: date(input.startDate) }
+					: {}),
+				...(input.dueDate !== undefined
+					? { dueDate: date(input.dueDate) }
+					: {}),
+				...(input.clientVisible !== undefined
+					? { clientVisible: input.clientVisible }
+					: {}),
+			},
+			select: { id: true, projectId: true, name: true },
+		});
+	}
+
+	async deletePhase(id: string, actorId: string) {
+		const phase = await this.db.projectPhase.findUnique({
+			where: { id },
+			select: { projectId: true, name: true },
+		});
+		if (!phase) throw new NotFoundException(`No phase with id ${id}.`);
+		await this.assertProjectAccess(phase.projectId, actorId);
+		await this.db.projectPhase.delete({ where: { id } });
+		return { id, projectId: phase.projectId, name: phase.name };
+	}
+
+	async addTaskComment(input: ProjectTaskCommentCreateInput, actorId: string) {
+		await this.assertTaskAccess(input.taskId, actorId);
+		return this.db.projectTaskComment.create({
+			data: {
+				taskId: input.taskId,
+				authorId: actorId,
+				body: input.body.trim(),
+				internal: input.internal,
+			},
+			select: {
+				id: true,
+				taskId: true,
+				body: true,
+				internal: true,
+				createdAt: true,
+				author: { select: USER_SELECT },
+			},
+		});
+	}
+
+	async addDependency(input: ProjectTaskDependencyInput, actorId: string) {
+		if (input.taskId === input.blockedById)
+			throw new ForbiddenException("A task cannot block itself.");
+		const [task, blocker] = await Promise.all([
+			this.assertTaskAccess(input.taskId, actorId),
+			this.db.projectTask.findUnique({
+				where: { id: input.blockedById },
+				select: { projectId: true },
+			}),
+		]);
+		if (!blocker || blocker.projectId !== task.projectId)
+			throw new ForbiddenException(
+				"Dependencies must belong to the same project.",
+			);
+		return this.db.projectTaskDependency.upsert({
+			where: { taskId_blockedById: input },
+			create: input,
+			update: {},
+			select: { taskId: true, blockedById: true },
+		});
+	}
+
+	async removeDependency(input: ProjectTaskDependencyInput, actorId: string) {
+		await this.assertTaskAccess(input.taskId, actorId);
+		await this.db.projectTaskDependency.deleteMany({ where: input });
+		return input;
+	}
+
+	async logTime(input: ProjectTimeEntryCreateInput, actorId: string) {
+		await this.assertProjectAccess(input.projectId, actorId);
+		if (input.taskId) {
+			const task = await this.db.projectTask.findUnique({
+				where: { id: input.taskId },
+				select: { projectId: true },
+			});
+			if (!task || task.projectId !== input.projectId)
+				throw new ForbiddenException(
+					"That task does not belong to this project.",
+				);
+		}
+		const startedAt = date(input.startedAt) ?? new Date();
+		return this.db.timeEntry.create({
+			data: {
+				projectId: input.projectId,
+				taskId: input.taskId || null,
+				staffUserId: actorId,
+				description: input.description.trim(),
+				startedAt,
+				endedAt: new Date(startedAt.getTime() + input.minutes * 60_000),
+				minutes: input.minutes,
+				billable: input.billable,
+			},
+			select: { id: true, projectId: true, taskId: true, minutes: true },
+		});
+	}
+
+	private async assertProjectAccess(projectId: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		const project = await this.db.project.findFirst({
+			where: {
+				id: projectId,
+				...(access.admin ? {} : assignedProjectWhere(actorId)),
+			},
+			select: { id: true },
+		});
+		if (!project)
+			throw new ForbiddenException("This project is not assigned to you.");
+		return project;
+	}
+
+	private async assertTaskAccess(taskId: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		const task = await this.db.projectTask.findFirst({
+			where: {
+				id: taskId,
+				...(access.admin ? {} : { project: assignedProjectWhere(actorId) }),
+			},
+			select: { id: true, projectId: true },
+		});
+		if (!task)
+			throw new ForbiddenException(
+				"This task is not assigned to your project.",
+			);
+		return task;
+	}
+
+	private async assertStaffAssignee(assigneeId: string | null | undefined) {
+		if (!assigneeId) return;
+		try {
+			await staffRole(this.db, assigneeId);
+		} catch {
+			throw new ForbiddenException(
+				"Project tasks can only be assigned to active staff members, not client portal users.",
+			);
+		}
+	}
+
+	private async assertTaskLinks(
+		projectId: string,
+		phaseId?: string | null,
+		parentTaskId?: string | null,
+		taskId?: string,
+	) {
+		if (taskId && parentTaskId === taskId)
+			throw new ForbiddenException("A task cannot be its own parent.");
+		const [phase, parent] = await Promise.all([
+			phaseId
+				? this.db.projectPhase.findUnique({
+						where: { id: phaseId },
+						select: { projectId: true },
+					})
+				: null,
+			parentTaskId
+				? this.db.projectTask.findUnique({
+						where: { id: parentTaskId },
+						select: { projectId: true },
+					})
+				: null,
+		]);
+		if (phaseId && phase?.projectId !== projectId)
+			throw new ForbiddenException("That phase belongs to another project.");
+		if (parentTaskId && parent?.projectId !== projectId)
+			throw new ForbiddenException(
+				"That parent task belongs to another project.",
+			);
 	}
 
 	private search(q: string): Prisma.ProjectWhereInput {

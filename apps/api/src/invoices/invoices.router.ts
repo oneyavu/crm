@@ -12,8 +12,10 @@ import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	invoiceCreateInput,
+	invoiceDuplicateInput,
 	invoiceIdInput,
 	invoiceListInput,
+	invoiceScheduleInput,
 	invoiceStatusInput,
 } from "./invoices.contracts";
 import { InvoicesService } from "./invoices.service";
@@ -62,5 +64,26 @@ export class InvoicesRouter {
 	@Mutation({ input: invoiceIdInput })
 	async delete(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.invoices.delete(id, ctx.user.id);
+	}
+
+	@Mutation({ input: invoiceDuplicateInput })
+	async duplicate(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceDuplicateInput>,
+	) {
+		return this.invoices.duplicate(
+			input.id,
+			ctx.user.id,
+			input.issueDate,
+			input.dueDate,
+		);
+	}
+
+	@Mutation({ input: invoiceScheduleInput })
+	async saveSchedule(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceScheduleInput>,
+	) {
+		return this.invoices.saveSchedule(input, ctx.user.id);
 	}
 }

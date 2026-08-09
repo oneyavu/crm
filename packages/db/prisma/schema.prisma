@@ -30,6 +30,7 @@ model User {
   projectMemberships           ProjectMember[]
   assignedProjectTasks         ProjectTask[]              @relation("ProjectTaskAssignee")
   createdProjectTasks          ProjectTask[]              @relation("ProjectTaskCreator")
+  projectTaskComments         ProjectTaskComment[]
   createdInvoices              Invoice[]                  @relation("InvoiceCreator")
   notifications                Notification[]
   activities                   Activity[]                 @relation("ActivityAuthor")
@@ -186,6 +187,19 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   VOID
+}
+
+enum BillingScheduleKind {
+  RECURRING_INVOICE
+  SUBSCRIPTION
+}
+
+enum BillingCadence {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
 }
 
 enum NotificationType {
@@ -1133,6 +1147,7 @@ model Project {
 
   members           ProjectMember[]
   tasks             ProjectTask[]
+  phases            ProjectPhase[]
   invoices          Invoice[]
   notifications     Notification[]
   businessRecords   BusinessRecord[]
@@ -1214,6 +1229,17 @@ model ProjectTask {
   status      ProjectTaskStatus   @default(TODO)
   priority    ProjectTaskPriority @default(MEDIUM)
   position    Int                 @default(0)
+  progress    Int                 @default(0)
+  estimatedMinutes Int            @default(0)
+  startDate   DateTime?
+  clientVisible Boolean           @default(true)
+
+  phaseId String?
+  phase   ProjectPhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  parentTaskId String?
+  parentTask   ProjectTask?  @relation("ProjectTaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks     ProjectTask[] @relation("ProjectTaskHierarchy")
 
   assigneeId  String?
   assignee    User?   @relation("ProjectTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -1227,14 +1253,66 @@ model ProjectTask {
   meetingSummary   MeetingSummary? @relation(fields: [meetingSummaryId], references: [id], onDelete: SetNull)
 
   notifications Notification[]
+  comments      ProjectTaskComment[]
+  timeEntries   TimeEntry[]
+  blockedBy     ProjectTaskDependency[] @relation("BlockedTask")
+  blocking      ProjectTaskDependency[] @relation("BlockingTask")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   @@index([projectId, status, position])
+  @@index([phaseId, position])
+  @@index([parentTaskId])
   @@index([assigneeId, status])
   @@index([dueDate])
   @@index([meetingSummaryId])
   @@map("projectTask")
+}
+
+model ProjectPhase {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  color         String   @default("#6cd32c")
+  position      Int      @default(0)
+  startDate     DateTime?
+  dueDate       DateTime?
+  clientVisible Boolean  @default(true)
+  tasks         ProjectTask[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([projectId, position])
+  @@map("projectPhase")
+}
+
+model ProjectTaskDependency {
+  taskId      String
+  task        ProjectTask @relation("BlockedTask", fields: [taskId], references: [id], onDelete: Cascade)
+  blockedById String
+  blockedBy   ProjectTask @relation("BlockingTask", fields: [blockedById], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+
+  @@id([taskId, blockedById])
+  @@index([blockedById])
+  @@map("projectTaskDependency")
+}
+
+model ProjectTaskComment {
+  id        String      @id @default(cuid())
+  taskId    String
+  task      ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  internal  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("projectTaskComment")
 }
 
 model Invoice {
@@ -1261,6 +1339,11 @@ model Invoice {
   notes          String?
   sentAt         DateTime?
   paidAt         DateTime?
+  dueTime        String    @default("17:00")
+
+  templateSchedule InvoiceSchedule? @relation("InvoiceScheduleTemplate")
+  scheduleId       String?
+  schedule         InvoiceSchedule? @relation("InvoiceScheduleGenerated", fields: [scheduleId], references: [id], onDelete: SetNull)
 
   lines              InvoiceLine[]
   notifications      Notification[]
@@ -1274,7 +1357,32 @@ model Invoice {
   @@index([projectId])
   @@index([status])
   @@index([dueDate])
+  @@index([scheduleId])
   @@map("invoice")
+}
+
+model InvoiceSchedule {
+  id                String              @id @default(cuid())
+  kind              BillingScheduleKind @default(RECURRING_INVOICE)
+  cadence           BillingCadence      @default(MONTHLY)
+  interval          Int                 @default(1)
+  templateInvoiceId String              @unique
+  templateInvoice   Invoice             @relation("InvoiceScheduleTemplate", fields: [templateInvoiceId], references: [id], onDelete: Cascade)
+  generatedInvoices Invoice[]            @relation("InvoiceScheduleGenerated")
+  nextIssueAt       DateTime
+  paymentTermsDays  Int                 @default(7)
+  dueTime           String              @default("17:00")
+  active            Boolean             @default(true)
+  sendAutomatically Boolean             @default(false)
+  remindAdmin       Boolean             @default(true)
+  remindClient      Boolean             @default(true)
+  reminderDays      Int[]               @default([7, 3, 1, 0])
+  lastGeneratedAt   DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([active, nextIssueAt])
+  @@map("invoiceSchedule")
 }
 
 model InvoiceLine {
@@ -1493,6 +1601,7 @@ model TimeEntry {
   projectId      String?
   project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   taskId         String?
+  task           ProjectTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
   description    String
   startedAt      DateTime
   endedAt        DateTime?
@@ -1505,6 +1614,7 @@ model TimeEntry {
   updatedAt      DateTime      @updatedAt
 
   @@index([projectId, startedAt])
+  @@index([taskId, startedAt])
   @@index([staffProfileId, startedAt])
   @@map("timeEntry")
 }

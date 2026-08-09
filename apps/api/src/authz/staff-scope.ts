@@ -1,10 +1,10 @@
-import { isWorkspaceAdmin } from "@crm/auth";
+import { isWorkspaceAdmin, WORKSPACE_ID } from "@crm/auth";
 import type { Db, Prisma } from "@crm/db";
 import { ForbiddenException } from "@nestjs/common";
 
 export async function staffRole(db: Db, userId: string) {
 	const member = await db.member.findFirst({
-		where: { userId },
+		where: { userId, organizationId: WORKSPACE_ID },
 		select: { role: true },
 	});
 	if (!member)

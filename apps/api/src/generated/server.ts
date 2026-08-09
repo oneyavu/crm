@@ -25,18 +25,18 @@ import { dashboardSummaryInput } from "../dashboard/dashboard.contracts";
 import { dealListInput, dealIdInput, dealCreateInput, dealUpdateArgs, setStageInput, dealContactsInput, dealAttachContactInput, dealDetachContactInput, dealContactRoleInput, dealBulkOwnerInput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
 import { fieldListInput, fieldByKeyInput, fieldIdInput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput } from "../fields/fields.contracts";
 import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInput } from "../google/google.contracts";
-import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput } from "../invoices/invoices.contracts";
+import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput, invoiceDuplicateInput, invoiceScheduleInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
 import { entityIdInput, expenseCategoryInput, messageTemplateInput, financialAccountInput, staffProfileInput, compensationInput, metricInput, pricingInput, documentInput, dealAnalysisInput, forecastInput } from "../operations/operations.contracts";
 import { paperclipAgentInput, paperclipInstructionInput, paperclipApprovalInput, paperclipWorkflowInput } from "../paperclip/paperclip.contracts";
 import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, portalLiveChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
-import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput } from "../projects/projects.contracts";
+import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput, projectPhaseCreateInput, projectPhaseUpdateInput, projectTaskCommentCreateInput, projectTaskDependencyInput, projectTimeEntryCreateInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordUpdateInput, recordIdInput } from "../records/records.contracts";
 import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
 import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportFormalizeInput, supportConversationInput } from "../support/support.contracts";
-import { memberListInput, updateWorkspaceInput, setMemberRoleInput, inviteMemberInput, invitationInput } from "../workspace/workspace.contracts";
+import { memberListInput, updateWorkspaceInput, setMemberRoleInput, memberIdInput, inviteMemberInput, invitationInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
 import type { CatalogRouter } from "../catalog/catalog.router";
@@ -402,7 +402,13 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["setStatus"]>>),
     delete: publicProcedure
       .input(invoiceIdInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["delete"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["delete"]>>),
+    duplicate: publicProcedure
+      .input(invoiceDuplicateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["duplicate"]>>),
+    saveSchedule: publicProcedure
+      .input(invoiceScheduleInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["saveSchedule"]>>)
     }),
   microsoft: t.router({
     status: publicProcedure
@@ -580,7 +586,28 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["updateTask"]>>),
     deleteTask: publicProcedure
       .input(projectTaskIdInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["deleteTask"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["deleteTask"]>>),
+    createPhase: publicProcedure
+      .input(projectPhaseCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["createPhase"]>>),
+    updatePhase: publicProcedure
+      .input(projectPhaseUpdateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["updatePhase"]>>),
+    deletePhase: publicProcedure
+      .input(projectIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["deletePhase"]>>),
+    addTaskComment: publicProcedure
+      .input(projectTaskCommentCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["addTaskComment"]>>),
+    addDependency: publicProcedure
+      .input(projectTaskDependencyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["addDependency"]>>),
+    removeDependency: publicProcedure
+      .input(projectTaskDependencyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["removeDependency"]>>),
+    logTime: publicProcedure
+      .input(projectTimeEntryCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["logTime"]>>)
     }),
   records: t.router({
     list: publicProcedure
@@ -677,6 +704,9 @@ const appRouter = t.router({
     setMemberRole: publicProcedure
       .input(setMemberRoleInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["setMemberRole"]>>),
+    removeMember: publicProcedure
+      .input(memberIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["removeMember"]>>),
     invitations: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["invitations"]>>),
     inviteMember: publicProcedure

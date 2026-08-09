@@ -284,6 +284,67 @@ export class WorkspaceService {
 		}));
 	}
 
+	async removeMember(userId: string, memberId: string) {
+		await this.assertRoleManager(userId);
+		const removed = await this.db.$transaction(async (tx) => {
+			const target = await tx.member.findFirst({
+				where: { id: memberId, organizationId: WORKSPACE_ID },
+				select: {
+					id: true,
+					userId: true,
+					role: true,
+					user: { select: { name: true, email: true } },
+				},
+			});
+			if (!target)
+				throw new NotFoundException(
+					"That staff member is not in this workspace.",
+				);
+			if (target.userId === userId)
+				throw new ForbiddenException(
+					"You cannot remove your own staff access.",
+				);
+			if (target.role === "owner") {
+				const ownerCount = await tx.member.count({
+					where: { organizationId: WORKSPACE_ID, role: "owner" },
+				});
+				if (ownerCount <= 1)
+					throw new ForbiddenException("The workspace must retain an owner.");
+			}
+			await tx.projectMember.deleteMany({ where: { userId: target.userId } });
+			await tx.projectTask.updateMany({
+				where: { assigneeId: target.userId },
+				data: { assigneeId: null },
+			});
+			await tx.staffProfile.updateMany({
+				where: { userId: target.userId },
+				data: { active: false },
+			});
+			await tx.member.delete({ where: { id: target.id } });
+			await tx.auditEntry.create({
+				data: {
+					entityType: "StaffMember",
+					entityId: target.id,
+					action: "REMOVE",
+					actorId: userId,
+					summary: `Removed staff access for ${target.user.name} (${target.user.email})`,
+				},
+			});
+			return target;
+		});
+		this.logger.log({
+			message: "Staff member removed",
+			userId,
+			memberId,
+			removedUserId: removed.userId,
+		});
+		return {
+			id: removed.id,
+			name: removed.user.name,
+			email: removed.user.email,
+		};
+	}
+
 	async inviteMember(userId: string, input: InviteMemberInput) {
 		await this.assertRoleManager(userId);
 		const email = input.email.trim().toLowerCase();

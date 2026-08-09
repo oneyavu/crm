@@ -23,6 +23,7 @@ export function InvoicesWorkspace() {
 	const [catalogItemId, setCatalogItemId] = useState("");
 	const [description, setDescription] = useState("");
 	const [amount, setAmount] = useState("");
+	const [dueTime, setDueTime] = useState("17:00");
 	const workspace = useQuery(trpc.workspace.get.queryOptions());
 	const canManageInvoices = Boolean(
 		workspace.data?.permissions.manageWorkspace,
@@ -80,6 +81,7 @@ export function InvoicesWorkspace() {
 								recipientEmail: recipientEmail || null,
 								issueDate: toDay(today),
 								dueDate: toDay(due),
+								dueTime,
 								currency: "JMD",
 								taxCents: 0,
 								lines: [
@@ -160,6 +162,16 @@ export function InvoicesWorkspace() {
 								step="0.01"
 								value={amount}
 								onChange={(event) => setAmount(event.target.value)}
+								required
+							/>
+						</label>
+						<label className="grid gap-1 text-sm" htmlFor="invoice-due-time">
+							Payment due time
+							<Input
+								id="invoice-due-time"
+								type="time"
+								value={dueTime}
+								onChange={(event) => setDueTime(event.target.value)}
 								required
 							/>
 						</label>

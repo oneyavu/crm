@@ -137,11 +137,21 @@ export class PortalService {
 		const row = await this.db.clientPortalAccess.findUnique({ where: { id } });
 		if (!row) throw new NotFoundException("Portal access not found.");
 		const result = await this.db.clientPortalAccess.update({
-				where: { id },
-				data: { active: false },
-				select: { id: true, email: true, active: true },
-			});
-		await this.db.auditEntry.create({ data: { entityType: "ClientPortalAccess", entityId: id, action: "REVOKE", actorId, summary: `Revoked portal access for ${row.email}`, before: { active: row.active }, after: { active: false } } });
+			where: { id },
+			data: { active: false },
+			select: { id: true, email: true, active: true },
+		});
+		await this.db.auditEntry.create({
+			data: {
+				entityType: "ClientPortalAccess",
+				entityId: id,
+				action: "REVOKE",
+				actorId,
+				summary: `Revoked portal access for ${row.email}`,
+				before: { active: row.active },
+				after: { active: false },
+			},
+		});
 		return result;
 	}
 
@@ -150,7 +160,20 @@ export class PortalService {
 		const row = await this.db.clientPortalAccess.findUnique({ where: { id } });
 		if (!row) throw new NotFoundException("Portal access not found.");
 		await this.db.clientPortalAccess.delete({ where: { id } });
-		await this.db.auditEntry.create({ data: { entityType: "ClientPortalAccess", entityId: id, action: "DELETE", actorId, summary: `Permanently removed portal access for ${row.email}`, before: { email: row.email, companyId: row.companyId, active: row.active } } });
+		await this.db.auditEntry.create({
+			data: {
+				entityType: "ClientPortalAccess",
+				entityId: id,
+				action: "DELETE",
+				actorId,
+				summary: `Permanently removed portal access for ${row.email}`,
+				before: {
+					email: row.email,
+					companyId: row.companyId,
+					active: row.active,
+				},
+			},
+		});
 		return { id };
 	}
 
@@ -177,6 +200,7 @@ export class PortalService {
 						startDate: true,
 						dueDate: true,
 						tasks: {
+							where: { clientVisible: true },
 							orderBy: [{ status: "asc" }, { position: "asc" }],
 							select: {
 								id: true,
@@ -185,6 +209,30 @@ export class PortalService {
 								status: true,
 								priority: true,
 								dueDate: true,
+								startDate: true,
+								progress: true,
+								phase: { select: { id: true, name: true, color: true } },
+							},
+						},
+						phases: {
+							where: { clientVisible: true },
+							orderBy: { position: "asc" },
+							select: {
+								id: true,
+								name: true,
+								color: true,
+								startDate: true,
+								dueDate: true,
+							},
+						},
+						milestones: {
+							where: { clientVisible: true },
+							orderBy: { position: "asc" },
+							select: {
+								id: true,
+								title: true,
+								dueDate: true,
+								completedAt: true,
 							},
 						},
 					},
@@ -340,6 +388,9 @@ export class PortalService {
 				outcomes: true,
 				capabilities: true,
 				sourceUrl: true,
+				costProfile: {
+					select: { currency: true, listPrice: true, updatedAt: true },
+				},
 			},
 		});
 		const projects = company.projects;
@@ -379,7 +430,16 @@ export class PortalService {
 			...company,
 			invoices,
 			paymentAccounts,
-			portfolio,
+			portfolio: portfolio.map(({ costProfile, ...item }) => ({
+				...item,
+				price: costProfile
+					? {
+							currency: costProfile.currency,
+							listPriceCents: toCents(costProfile.listPrice) ?? 0,
+							updatedAt: costProfile.updatedAt.toISOString(),
+						}
+					: null,
+			})),
 			ai: { configured: this.ai.configured(), model: "Managed AI" },
 			analytics: {
 				activeProjects: projects.filter(

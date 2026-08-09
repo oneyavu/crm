@@ -1437,6 +1437,16 @@ function ServicePortfolio({
 						<p className="mt-4 max-w-[65ch] text-sm leading-6 text-white/55">
 							{item.summary}
 						</p>
+						{item.price?.listPriceCents ? (
+							<div className="mt-4 rounded-xl border border-[#71ed75]/20 bg-[#71ed75]/5 px-4 py-3">
+								<p className="text-[10px] tracking-[0.14em] text-white/40 uppercase">
+									Portfolio price
+								</p>
+								<p className="mt-1 font-medium text-[#71ed75] text-lg">
+									{formatMoney(item.price.listPriceCents, item.price.currency)}
+								</p>
+							</div>
+						) : null}
 						{item.outcomes.length > 0 ? (
 							<ul className="mt-5 grid gap-2 text-xs text-white/45">
 								{item.outcomes.slice(0, 3).map((outcome) => (

@@ -25,6 +25,7 @@ export const setMemberRoleInput = z.object({
 	memberId: z.string().min(1),
 	role: z.enum(WORKSPACE_ROLES),
 });
+export const memberIdInput = z.object({ memberId: z.string().min(1) });
 
 export const inviteMemberInput = z.object({
 	email: z.string().trim().email(),

@@ -1,6 +1,8 @@
+import { WORKSPACE_ID } from "@crm/auth";
 import {
 	type Db,
 	InvoiceStatus,
+	NotificationType,
 	type Prisma,
 	Prisma as PrismaNamespace,
 } from "@crm/db";
@@ -22,6 +24,7 @@ import { FACET_ALL, paginate, resolveOrderBy } from "../trpc/list-input";
 import type {
 	InvoiceCreateInput,
 	InvoiceListInput,
+	InvoiceScheduleInput,
 } from "./invoices.contracts";
 
 const SORTABLE: Record<
@@ -53,6 +56,7 @@ const INVOICE_DETAIL_INCLUDE = {
 		orderBy: { position: "asc" as const },
 		include: { catalogItem: true },
 	},
+	templateSchedule: true,
 } satisfies Prisma.InvoiceInclude;
 
 type InvoiceDetailRow = Prisma.InvoiceGetPayload<{
@@ -69,6 +73,7 @@ type InvoiceDetail = Omit<
 	| "dueDate"
 	| "sentAt"
 	| "paidAt"
+	| "templateSchedule"
 	| "lines"
 > & {
 	subtotalCents: number;
@@ -79,6 +84,21 @@ type InvoiceDetail = Omit<
 	dueDate: string;
 	sentAt: string | null;
 	paidAt: string | null;
+	templateSchedule: null | {
+		id: string;
+		kind: string;
+		cadence: string;
+		interval: number;
+		nextIssueAt: string;
+		paymentTermsDays: number;
+		dueTime: string;
+		active: boolean;
+		sendAutomatically: boolean;
+		remindAdmin: boolean;
+		remindClient: boolean;
+		reminderDays: number[];
+		lastGeneratedAt: string | null;
+	};
 	lines: Array<
 		Omit<
 			InvoiceDetailRow["lines"][number],
@@ -181,7 +201,7 @@ export class InvoicesService {
 		if (!access.admin)
 			throw new ForbiddenException("Invoice creation requires approval.");
 		const issueDate = new Date(`${input.issueDate}T12:00:00.000Z`);
-		const dueDate = new Date(`${input.dueDate}T12:00:00.000Z`);
+		const dueDate = new Date(`${input.dueDate}T${input.dueTime}:00.000Z`);
 		if (dueDate < issueDate) {
 			throw new BadRequestException(
 				"Due date must be on or after the issue date.",
@@ -215,6 +235,7 @@ export class InvoicesService {
 					recipientEmail: blankToNull(input.recipientEmail ?? ""),
 					issueDate,
 					dueDate,
+					dueTime: input.dueTime,
 					currency: input.currency,
 					subtotal: moneyFromCents(subtotalCents),
 					tax: moneyFromCents(input.taxCents),
@@ -288,6 +309,211 @@ export class InvoicesService {
 		}
 	}
 
+	async duplicate(
+		id: string,
+		userId: string,
+		issueDateValue?: string,
+		dueDateValue?: string,
+	) {
+		const access = await staffRole(this.db, userId);
+		if (!access.admin)
+			throw new ForbiddenException(
+				"Invoice duplication requires administrator access.",
+			);
+		const source = await this.byId(id, userId);
+		const issueDate = issueDateValue ?? new Date().toISOString().slice(0, 10);
+		const sourceTerms = Math.max(
+			0,
+			Math.round(
+				(new Date(source.dueDate).getTime() -
+					new Date(source.issueDate).getTime()) /
+					86_400_000,
+			),
+		);
+		const dueDate =
+			dueDateValue ??
+			addDays(new Date(`${issueDate}T12:00:00.000Z`), sourceTerms)
+				.toISOString()
+				.slice(0, 10);
+		return this.create(
+			{
+				companyId: source.companyId,
+				projectId: source.projectId,
+				recipientName: source.recipientName,
+				recipientEmail: source.recipientEmail,
+				issueDate,
+				dueDate,
+				dueTime: source.dueTime,
+				currency: source.currency,
+				taxCents: source.taxCents,
+				notes: source.notes,
+				lines: source.lines.map((line) => ({
+					description: line.description,
+					quantity: line.quantity,
+					unitPriceCents: line.unitPriceCents,
+					catalogItemId: line.catalogItemId,
+				})),
+			},
+			userId,
+		);
+	}
+
+	async saveSchedule(input: InvoiceScheduleInput, userId: string) {
+		const access = await staffRole(this.db, userId);
+		if (!access.admin)
+			throw new ForbiddenException(
+				"Recurring billing setup requires administrator access.",
+			);
+		const template = await this.db.invoice.findUnique({
+			where: { id: input.templateInvoiceId },
+			select: { id: true },
+		});
+		if (!template)
+			throw new NotFoundException(
+				`No invoice with id ${input.templateInvoiceId}.`,
+			);
+		const values = {
+			kind: input.kind,
+			cadence: input.cadence,
+			interval: input.interval,
+			nextIssueAt: new Date(input.nextIssueAt),
+			paymentTermsDays: input.paymentTermsDays,
+			dueTime: input.dueTime,
+			active: input.active,
+			sendAutomatically: input.sendAutomatically,
+			remindAdmin: input.remindAdmin,
+			remindClient: input.remindClient,
+			reminderDays: [...new Set(input.reminderDays)].sort((a, b) => b - a),
+		};
+		return this.db.invoiceSchedule.upsert({
+			where: { templateInvoiceId: input.templateInvoiceId },
+			create: { templateInvoiceId: input.templateInvoiceId, ...values },
+			update: values,
+			select: {
+				id: true,
+				templateInvoiceId: true,
+				active: true,
+				nextIssueAt: true,
+			},
+		});
+	}
+
+	async processBillingAutomation() {
+		const now = new Date();
+		await this.db.invoice.updateMany({
+			where: { status: InvoiceStatus.SENT, dueDate: { lt: now } },
+			data: { status: InvoiceStatus.OVERDUE },
+		});
+		const schedules = await this.db.invoiceSchedule.findMany({
+			where: { active: true, nextIssueAt: { lte: now } },
+			include: { templateInvoice: { select: { id: true, createdById: true } } },
+			take: 50,
+		});
+		let generated = 0;
+		for (const schedule of schedules) {
+			const nextIssueAt = advanceSchedule(
+				schedule.nextIssueAt,
+				schedule.cadence,
+				schedule.interval,
+			);
+			const claimed = await this.db.invoiceSchedule.updateMany({
+				where: {
+					id: schedule.id,
+					active: true,
+					nextIssueAt: schedule.nextIssueAt,
+				},
+				data: { nextIssueAt },
+			});
+			if (!claimed.count) continue;
+			const issueDate = schedule.nextIssueAt.toISOString().slice(0, 10);
+			const dueDate = addDays(schedule.nextIssueAt, schedule.paymentTermsDays)
+				.toISOString()
+				.slice(0, 10);
+			try {
+				const created = await this.duplicate(
+					schedule.templateInvoice.id,
+					schedule.templateInvoice.createdById,
+					issueDate,
+					dueDate,
+				);
+				await this.db.invoice.update({
+					where: { id: created.id },
+					data: {
+						scheduleId: schedule.id,
+						dueTime: schedule.dueTime,
+						dueDate: new Date(`${dueDate}T${schedule.dueTime}:00.000Z`),
+					},
+				});
+				await this.db.invoiceSchedule.update({
+					where: { id: schedule.id },
+					data: { lastGeneratedAt: now },
+				});
+				if (schedule.sendAutomatically)
+					await this.send(created.id, schedule.templateInvoice.createdById);
+				generated += 1;
+			} catch (error) {
+				await this.db.invoiceSchedule.updateMany({
+					where: { id: schedule.id, nextIssueAt },
+					data: { nextIssueAt: schedule.nextIssueAt },
+				});
+				throw error;
+			}
+		}
+		const reminded = await this.sendDueReminders(now);
+		return { generated, reminded };
+	}
+
+	private async sendDueReminders(now: Date) {
+		const start = new Date(now);
+		start.setUTCHours(0, 0, 0, 0);
+		const end = addDays(start, 91);
+		const invoices = await this.db.invoice.findMany({
+			where: {
+				status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] },
+				dueDate: { gte: addDays(start, -1), lt: end },
+			},
+			include: { schedule: true },
+			take: 250,
+		});
+		const admins = await this.db.member.findMany({
+			where: { organizationId: WORKSPACE_ID, role: { in: ["owner", "admin"] } },
+			select: { userId: true },
+		});
+		let sent = 0;
+		for (const invoice of invoices) {
+			const days = Math.ceil(
+				(invoice.dueDate.getTime() - start.getTime()) / 86_400_000,
+			);
+			const reminderDays = invoice.schedule?.reminderDays ?? [7, 3, 1, 0];
+			if (!reminderDays.includes(days)) continue;
+			const subject = `Payment reminder: ${invoice.number} is ${days === 0 ? "due today" : `due in ${days} day${days === 1 ? "" : "s"}`}`;
+			const alreadySent = await this.db.emailDelivery.count({
+				where: { invoiceId: invoice.id, subject, createdAt: { gte: start } },
+			});
+			if (alreadySent) continue;
+			const body = `${invoice.number} has ${new Intl.NumberFormat("en", { style: "currency", currency: invoice.currency }).format(Number(invoice.total.minus(invoice.amountPaid)))} outstanding and is due ${invoice.dueDate.toISOString().slice(0, 10)} at ${invoice.dueTime}.`;
+			if (invoice.schedule?.remindAdmin !== false)
+				for (const admin of admins)
+					await this.notifications.notifyUser({
+						userId: admin.userId,
+						type: NotificationType.INVOICE_DUE,
+						title: subject,
+						body,
+						href: `/invoices/${invoice.id}`,
+						invoiceId: invoice.id,
+					});
+			if (invoice.recipientEmail && invoice.schedule?.remindClient !== false)
+				await this.notifications.sendEmail({
+					toEmail: invoice.recipientEmail,
+					subject,
+					html: `<h1>${escapeHtml(subject)}</h1><p>${escapeHtml(body)}</p>`,
+					invoiceId: invoice.id,
+				});
+			sent += 1;
+		}
+		return sent;
+	}
+
 	async delete(id: string, userId: string) {
 		const access = await staffRole(this.db, userId);
 		if (!access.admin)
@@ -321,6 +547,7 @@ function serialize(row: InvoiceDetailRow): InvoiceDetail {
 		dueDate,
 		sentAt,
 		paidAt,
+		templateSchedule,
 		lines,
 		...invoice
 	} = row;
@@ -334,6 +561,24 @@ function serialize(row: InvoiceDetailRow): InvoiceDetail {
 		dueDate: dueDate.toISOString(),
 		sentAt: sentAt?.toISOString() ?? null,
 		paidAt: paidAt?.toISOString() ?? null,
+		templateSchedule: templateSchedule
+			? {
+					id: templateSchedule.id,
+					kind: templateSchedule.kind,
+					cadence: templateSchedule.cadence,
+					interval: templateSchedule.interval,
+					nextIssueAt: templateSchedule.nextIssueAt.toISOString(),
+					paymentTermsDays: templateSchedule.paymentTermsDays,
+					dueTime: templateSchedule.dueTime,
+					active: templateSchedule.active,
+					sendAutomatically: templateSchedule.sendAutomatically,
+					remindAdmin: templateSchedule.remindAdmin,
+					remindClient: templateSchedule.remindClient,
+					reminderDays: templateSchedule.reminderDays,
+					lastGeneratedAt:
+						templateSchedule.lastGeneratedAt?.toISOString() ?? null,
+				}
+			: null,
 		lines: lines.map((line) => {
 			const { quantity, unitPrice, amount, ...item } = line;
 			return {
@@ -371,4 +616,24 @@ function escapeHtml(value: string): string {
 
 function moneyFromCents(value: number): PrismaNamespace.Decimal {
 	return new PrismaNamespace.Decimal(value).div(100);
+}
+
+function addDays(value: Date, days: number): Date {
+	const result = new Date(value);
+	result.setUTCDate(result.getUTCDate() + days);
+	return result;
+}
+
+function advanceSchedule(value: Date, cadence: string, interval: number): Date {
+	const result = new Date(value);
+	if (cadence === "WEEKLY")
+		result.setUTCDate(result.getUTCDate() + 7 * interval);
+	else if (cadence === "MONTHLY")
+		result.setUTCMonth(result.getUTCMonth() + interval);
+	else if (cadence === "QUARTERLY")
+		result.setUTCMonth(result.getUTCMonth() + 3 * interval);
+	else if (cadence === "SEMIANNUAL")
+		result.setUTCMonth(result.getUTCMonth() + 6 * interval);
+	else result.setUTCFullYear(result.getUTCFullYear() + interval);
+	return result;
 }
