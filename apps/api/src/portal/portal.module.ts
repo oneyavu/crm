@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
+import { AiModule } from "../ai/ai.module";
 import { TrpcModule } from "../trpc/trpc.module";
 import { PortalRouter } from "./portal.router";
 import { PortalService } from "./portal.service";
 
 @Module({
-	imports: [TrpcModule],
+	imports: [AiModule, TrpcModule],
 	providers: [PortalRouter, PortalService],
 })
 export class PortalModule {}

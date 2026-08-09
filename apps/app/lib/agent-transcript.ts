@@ -363,7 +363,7 @@ export function latestTurnFailure(
 				message,
 			)
 				? "restricted"
-				: /GatewayRateLimitError|free tier requests.*rate-?limited/i.test(
+				: /GatewayRateLimitError|RateLimitError|rate.?limit|too many requests/i.test(
 							message,
 						)
 					? "rate-limit"

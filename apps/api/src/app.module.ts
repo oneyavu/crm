@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule as BetterAuthModule } from "@thallesp/nestjs-better-auth";
 import { ActivitiesModule } from "./activities/activities.module";
+import { AiModule } from "./ai/ai.module";
 import { AgentModule } from "./agent/agent.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackfillModule } from "./backfill/backfill.module";
@@ -33,6 +34,7 @@ import { RecordsModule } from "./records/records.module";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SsoModule } from "./sso/sso.module";
+import { SupportModule } from "./support/support.module";
 import { SyncModule } from "./sync/sync.module";
 import { TelemetryModule } from "./telemetry/telemetry.module";
 import { TrpcModule } from "./trpc/trpc.module";
@@ -65,6 +67,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		FieldsModule,
 		FirefliesModule,
 		ActivitiesModule,
+		AiModule,
 		AgentModule,
 		DashboardModule,
 		SearchModule,
@@ -79,6 +82,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		SettingsModule,
 		WorkspaceModule,
 		SsoModule,
+		SupportModule,
 		BackfillModule,
 		TelemetryModule,
 	],

@@ -1,8 +1,10 @@
 import { db } from "@crm/db";
 import { readAgentModel } from "@crm/db/settings";
+import type { LanguageModel } from "ai";
+import { openAIModel } from "./openai-model";
 
 export interface ModelSelection {
-	model: string;
+	model: LanguageModel;
 	modelContextWindowTokens: number;
 }
 
@@ -13,7 +15,7 @@ export async function selectedModel(): Promise<ModelSelection | null> {
 		if (setting.isDefault) return null;
 
 		return {
-			model: setting.id,
+			model: openAIModel(setting.id),
 			modelContextWindowTokens: setting.contextWindowTokens,
 		};
 	} catch (error) {

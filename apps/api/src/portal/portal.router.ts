@@ -11,9 +11,14 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
+	createServiceRequestInput,
 	portalAccessInput,
+	portalAiChatInput,
 	portalCompanyInput,
 	portalGrantInput,
+	serviceRequestReplyInput,
+	serviceRequestStatusInput,
+	submitInvoicePaymentInput,
 } from "./portal.contracts";
 import { PortalService } from "./portal.service";
 
@@ -46,5 +51,45 @@ export class PortalRouter {
 	@Mutation({ input: portalAccessInput })
 	async revoke(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.portal.revoke(id, ctx.user.id);
+	}
+
+	@Mutation({ input: createServiceRequestInput })
+	async createServiceRequest(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof createServiceRequestInput>,
+	) {
+		return this.portal.createServiceRequest(input, ctx.user);
+	}
+
+	@Mutation({ input: serviceRequestReplyInput })
+	async replyToServiceRequest(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof serviceRequestReplyInput>,
+	) {
+		return this.portal.replyToServiceRequest(input, ctx.user);
+	}
+
+	@Mutation({ input: serviceRequestStatusInput })
+	async setServiceRequestStatus(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof serviceRequestStatusInput>,
+	) {
+		return this.portal.setServiceRequestStatus(input, ctx.user);
+	}
+
+	@Mutation({ input: portalAiChatInput })
+	async aiChat(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof portalAiChatInput>,
+	) {
+		return this.portal.aiChat(input, ctx.user);
+	}
+
+	@Mutation({ input: submitInvoicePaymentInput })
+	async submitInvoicePayment(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof submitInvoicePaymentInput>,
+	) {
+		return this.portal.submitInvoicePayment(input, ctx.user);
 	}
 }

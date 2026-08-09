@@ -1,14 +1,17 @@
 import { db } from "@crm/db";
-import { DEFAULT_AGENT_MODEL } from "@crm/db/settings";
 import { defineAgent, defineDynamic } from "eve";
 import { z } from "zod";
+import {
+	OPENAI_CONTEXT_WINDOW_TOKENS,
+	openAIModel,
+} from "../../lib/openai-model";
 import { attribute, purposeOf } from "../../lib/session-purpose";
 
 export default defineAgent({
 	description:
 		"Execute one immutable deployed CRM agent version and persist its result and every side effect.",
 	model: defineDynamic({
-		fallback: DEFAULT_AGENT_MODEL.id,
+		fallback: openAIModel(),
 		events: {
 			"session.started": async (_event, ctx) => {
 				if (purposeOf(ctx) !== "team-agent") return null;
@@ -25,13 +28,14 @@ export default defineAgent({
 				});
 				return run
 					? {
-							model: run.version.modelId,
+							model: openAIModel(run.version.modelId),
 							modelContextWindowTokens: run.version.modelContextWindowTokens,
 						}
 					: null;
 			},
 		},
 	}),
+	modelContextWindowTokens: OPENAI_CONTEXT_WINDOW_TOKENS,
 	outputSchema: z.object({
 		summary: z.string().min(1).max(1000),
 		result: z.record(z.string(), z.unknown()).nullable(),

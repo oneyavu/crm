@@ -1,8 +1,21 @@
 import { Inject } from "@nestjs/common";
-import { Input, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import {
+	Ctx,
+	Input,
+	Mutation,
+	Query,
+	Router,
+	UseMiddlewares,
+} from "nestjs-trpc";
 import type { z } from "zod";
+import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
-import { setAgentModelInput, setResearchKeyInput } from "./settings.contracts";
+import {
+	paymentAccountCurrencyInput,
+	setAgentModelInput,
+	setResearchKeyInput,
+	upsertPaymentAccountInput,
+} from "./settings.contracts";
 import { SettingsService } from "./settings.service";
 
 @Router({ alias: "settings" })
@@ -35,5 +48,26 @@ export class SettingsRouter {
 	@Mutation({ input: setResearchKeyInput })
 	async setResearchKey(@Input() input: z.infer<typeof setResearchKeyInput>) {
 		return this.settings.setResearchKey(input.apiKey);
+	}
+
+	@Query()
+	async paymentAccounts(@Ctx() ctx: AuthedTrpcContext) {
+		return this.settings.paymentAccounts(ctx.user.id);
+	}
+
+	@Mutation({ input: upsertPaymentAccountInput })
+	async upsertPaymentAccount(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof upsertPaymentAccountInput>,
+	) {
+		return this.settings.upsertPaymentAccount(input, ctx.user.id);
+	}
+
+	@Mutation({ input: paymentAccountCurrencyInput })
+	async removePaymentAccount(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof paymentAccountCurrencyInput>,
+	) {
+		return this.settings.removePaymentAccount(input.currency, ctx.user.id);
 	}
 }

@@ -1,3 +1,4 @@
+import { isWorkspaceAdmin } from "@crm/auth";
 import type { Db } from "@crm/db";
 import {
 	DEFAULT_AGENT_MODEL,
@@ -7,7 +8,13 @@ import {
 	writeAgentModel,
 	writeContextDevKey,
 } from "@crm/db/settings";
-import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import {
+	BadRequestException,
+	ForbiddenException,
+	Injectable,
+	Logger,
+} from "@nestjs/common";
+import type { z } from "zod";
 import { ResearchKeyService } from "../agent/research-key.service";
 import { BackfillService } from "../backfill/backfill.service";
 import { InjectDatabase } from "../database/database.constants";
@@ -15,6 +22,7 @@ import {
 	type CatalogModel,
 	ModelCatalogService,
 } from "./model-catalog.service";
+import type { upsertPaymentAccountInput } from "./settings.contracts";
 
 export interface AgentModelSettings {
 	selectedId: string | null;
@@ -69,17 +77,11 @@ export class SettingsService {
 
 		const models = await this.catalog.models();
 
-		if (!models) {
-			throw new BadRequestException(
-				"Could not reach the AI Gateway to check that model. Try again in a moment.",
-			);
-		}
-
 		const chosen = models.find((model) => model.id === modelId);
 
 		if (!chosen) {
 			throw new BadRequestException(
-				`The AI Gateway does not serve a tool-using model called "${modelId}".`,
+				`The OpenAI connection does not support a model called "${modelId}".`,
 			);
 		}
 
@@ -141,5 +143,40 @@ export class SettingsService {
 			});
 
 		return this.researchKey();
+	}
+
+	async paymentAccounts(actorId: string) {
+		await this.assertAdmin(actorId);
+		return this.db.paymentBankAccount.findMany({
+			orderBy: { currency: "asc" },
+		});
+	}
+
+	async upsertPaymentAccount(
+		input: z.infer<typeof upsertPaymentAccountInput>,
+		actorId: string,
+	) {
+		await this.assertAdmin(actorId);
+		return this.db.paymentBankAccount.upsert({
+			where: { currency: input.currency },
+			create: input,
+			update: input,
+		});
+	}
+
+	async removePaymentAccount(currency: "USD" | "JMD", actorId: string) {
+		await this.assertAdmin(actorId);
+		return this.db.paymentBankAccount.delete({ where: { currency } });
+	}
+
+	private async assertAdmin(userId: string) {
+		const membership = await this.db.member.findFirst({
+			where: { userId },
+			select: { role: true },
+		});
+		if (!isWorkspaceAdmin(membership?.role as never))
+			throw new ForbiddenException(
+				"Workspace administrator access is required.",
+			);
 	}
 }

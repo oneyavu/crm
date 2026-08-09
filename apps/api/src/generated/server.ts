@@ -27,11 +27,12 @@ import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInpu
 import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
-import { portalCompanyInput, portalGrantInput, portalAccessInput } from "../portal/portal.contracts";
+import { portalCompanyInput, portalGrantInput, portalAccessInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordIdInput } from "../records/records.contracts";
-import { setAgentModelInput, setResearchKeyInput } from "../settings/settings.contracts";
+import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
+import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportConversationInput } from "../support/support.contracts";
 import { memberListInput, updateWorkspaceInput, setMemberRoleInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
@@ -53,6 +54,7 @@ import type { RecordsRouter } from "../records/records.router";
 import type { SearchRouter } from "../search/search.router";
 import type { SettingsRouter } from "../settings/settings.router";
 import type { SsoRouter } from "../sso/sso.router";
+import type { SupportRouter } from "../support/support.router";
 import type { UsersRouter } from "../users/users.router";
 import type { WorkspaceRouter } from "../workspace/workspace.router";
 
@@ -415,7 +417,22 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["grant"]>>),
     revoke: publicProcedure
       .input(portalAccessInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["revoke"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["revoke"]>>),
+    createServiceRequest: publicProcedure
+      .input(createServiceRequestInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["createServiceRequest"]>>),
+    replyToServiceRequest: publicProcedure
+      .input(serviceRequestReplyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["replyToServiceRequest"]>>),
+    setServiceRequestStatus: publicProcedure
+      .input(serviceRequestStatusInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["setServiceRequestStatus"]>>),
+    aiChat: publicProcedure
+      .input(portalAiChatInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["aiChat"]>>),
+    submitInvoicePayment: publicProcedure
+      .input(submitInvoicePaymentInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["submitInvoicePayment"]>>)
     }),
   projects: t.router({
     list: publicProcedure
@@ -473,7 +490,15 @@ const appRouter = t.router({
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["researchKey"]>>),
     setResearchKey: publicProcedure
       .input(setResearchKeyInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["setResearchKey"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["setResearchKey"]>>),
+    paymentAccounts: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["paymentAccounts"]>>),
+    upsertPaymentAccount: publicProcedure
+      .input(upsertPaymentAccountInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["upsertPaymentAccount"]>>),
+    removePaymentAccount: publicProcedure
+      .input(paymentAccountCurrencyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["removePaymentAccount"]>>)
     }),
   sso: t.router({
     signInOptions: publicProcedure
@@ -489,6 +514,24 @@ const appRouter = t.router({
     remove: publicProcedure
       .input(deleteSsoProviderInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SsoRouter["remove"]>>)
+    }),
+  support: t.router({
+    widget: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["widget"]>>),
+    saveWidget: publicProcedure
+      .input(saveWidgetInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["saveWidget"]>>),
+    conversations: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["conversations"]>>),
+    updateConversation: publicProcedure
+      .input(updateSupportConversationInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["updateConversation"]>>),
+    reply: publicProcedure
+      .input(supportReplyInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["reply"]>>),
+    conversation: publicProcedure
+      .input(supportConversationInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["conversation"]>>)
     }),
   users: t.router({
     me: publicProcedure

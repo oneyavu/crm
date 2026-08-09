@@ -1,15 +1,19 @@
-import { DEFAULT_AGENT_MODEL } from "@crm/db/settings";
 import { defineAgent, defineDynamic } from "eve";
 import { z } from "zod";
 import { selectedModel } from "../../lib/model";
+import {
+	OPENAI_CONTEXT_WINDOW_TOKENS,
+	openAIModel,
+} from "../../lib/openai-model";
 
 export default defineAgent({
 	description:
 		"Turn one private CRM builder-chat request into a validated, reviewable team-agent version without deploying it.",
 	model: defineDynamic({
-		fallback: DEFAULT_AGENT_MODEL.id,
+		fallback: openAIModel(),
 		events: { "session.started": () => selectedModel() },
 	}),
+	modelContextWindowTokens: OPENAI_CONTEXT_WINDOW_TOKENS,
 	outputSchema: z.discriminatedUnion("status", [
 		z.object({
 			status: z.literal("needs_input"),

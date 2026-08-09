@@ -72,6 +72,7 @@ const ITEMS: RailItem[] = [
 		nested: true,
 	},
 	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
+	{ title: "Widget Studio", href: "/support", icon: Chat, match: "prefix" },
 	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
 	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
 ];

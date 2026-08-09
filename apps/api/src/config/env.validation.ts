@@ -116,6 +116,10 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	OPENAI_API_KEY?: string;
+
+	@IsOptional()
+	@IsString()
 	NOTIFICATION_EMAIL_FROM?: string;
 
 	@IsOptional()
