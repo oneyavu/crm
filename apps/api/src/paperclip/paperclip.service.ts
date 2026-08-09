@@ -63,6 +63,9 @@ export class PaperclipService {
 				where: { key: "dashboard" },
 			});
 			const snapshot = (cached?.payload as JsonObject | undefined) ?? {};
+			const bridgeIsFresh = cached
+				? Date.now() - cached.fetchedAt.getTime() < 30_000
+				: false;
 			return {
 				companyId:
 					typeof snapshot.companyId === "string" ? snapshot.companyId : "",
@@ -73,12 +76,60 @@ export class PaperclipService {
 				routines: snapshot.routines ?? [],
 				syncedAt:
 					typeof snapshot.syncedAt === "string" ? snapshot.syncedAt : "",
-				connected: false,
+				connected: bridgeIsFresh,
 				error: error instanceof Error ? error.message : "Paperclip unavailable",
 				queued: await this.pendingCount(),
 				cachedAt: cached?.fetchedAt.toISOString() ?? null,
 			};
 		}
+	}
+
+	async bridgeSnapshot(payload: JsonObject) {
+		const snapshot = {
+			...payload,
+			connected: true,
+			syncedAt: new Date().toISOString(),
+		};
+		await this.db.paperclipSnapshot.upsert({
+			where: { key: "dashboard" },
+			create: {
+				key: "dashboard",
+				payload: snapshot as unknown as Prisma.InputJsonValue,
+			},
+			update: {
+				payload: snapshot as unknown as Prisma.InputJsonValue,
+				fetchedAt: new Date(),
+			},
+		});
+		return { ok: true };
+	}
+
+	bridgeOutbox() {
+		return this.db.paperclipOutbox.findMany({
+			where: { status: "PENDING", nextAttemptAt: { lte: new Date() } },
+			orderBy: { createdAt: "asc" },
+			take: 30,
+			select: { id: true, kind: true, targetId: true, payload: true },
+		});
+	}
+
+	async bridgeComplete(id: string, error?: string) {
+		if (error) {
+			await this.db.paperclipOutbox.update({
+				where: { id },
+				data: {
+					attempts: { increment: 1 },
+					lastError: error.slice(0, 1000),
+					nextAttemptAt: new Date(Date.now() + 60_000),
+				},
+			});
+		} else {
+			await this.db.paperclipOutbox.update({
+				where: { id },
+				data: { status: "SENT", attempts: { increment: 1 }, lastError: null },
+			});
+		}
+		return { ok: true };
 	}
 
 	async teamAgents() {
