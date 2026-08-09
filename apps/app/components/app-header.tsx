@@ -15,7 +15,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
-import Logo from "@crm/ui/components/logo";
 import { Separator } from "@crm/ui/components/separator";
 import { Skeleton } from "@crm/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +22,8 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { useMobileNav } from "@/components/mobile-nav";
+import { NotificationsMenu } from "@/components/notifications-menu";
+import { VayuMark } from "@/components/vayu-brand";
 import { signOutAndRedirect } from "@/lib/sign-out";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
@@ -54,13 +55,14 @@ export function AppHeader({ user }: { user: User }) {
 					aria-label="Homepage"
 					className="hidden size-8 items-center justify-center text-foreground md:flex"
 				>
-					<Logo className="size-5" />
+					<VayuMark className="size-7" />
 				</Link>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<span className="min-w-0 truncate font-medium text-sm">{label}</span>
 			</div>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">
+				<NotificationsMenu />
 				<UserMenu
 					user={user}
 					onSignOut={() => {
@@ -82,7 +84,7 @@ export function AppHeaderFallback() {
 		>
 			<div className="flex shrink-0 items-center gap-1">
 				<span className="hidden size-8 items-center justify-center text-foreground md:flex">
-					<Logo className="size-5" />
+					<VayuMark className="size-7" />
 				</span>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
 				<Skeleton className="h-4 w-24" />

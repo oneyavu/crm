@@ -15,6 +15,7 @@ const t = initTRPC.create();
 const publicProcedure = t.procedure;
 import { timelineInput, timelineCountsInput, myTasksInput, activityCreateInput, completeInput } from "../activities/activities.contracts";
 import { agentIdInput, agentHistoryInput, agentUpdateInput, agentDeployInput, agentRunNowInput } from "../agent/agents.contracts";
+import { catalogListInput } from "../catalog/catalog.contracts";
 import { companyListInput, companyIdInput, companyOptionsInput, companyCreateInput, companyUpdateArgs, companyBulkOwnerInput, companyBulkInput, setPrimaryContactInput } from "../companies/companies.contracts";
 import { contactListInput, contactIdInput, contactCreateInput, contactUpdateArgs, contactBulkOwnerInput, contactBulkCompanyInput, contactBulkInput, factDecisionInput } from "../contacts/contacts.contracts";
 import { conversationListInput, builderResourceSearchInput, conversationIdInput, conversationEventsInput, conversationSaveInput, builderConversationCreateInput, builderConversationSubmitInput, builderQuestionResponseInput, builderResponseRatingInput, sharedConversationInput } from "../conversations/conversations.contracts";
@@ -23,12 +24,16 @@ import { dashboardSummaryInput } from "../dashboard/dashboard.contracts";
 import { dealListInput, dealIdInput, dealCreateInput, dealUpdateArgs, setStageInput, dealContactsInput, dealAttachContactInput, dealDetachContactInput, dealContactRoleInput, dealBulkOwnerInput, dealBulkStageInput, dealBulkInput } from "../deals/deals.contracts";
 import { fieldListInput, fieldByKeyInput, fieldIdInput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput } from "../fields/fields.contracts";
 import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInput } from "../google/google.contracts";
+import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
+import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
+import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput } from "../projects/projects.contracts";
 import { setAgentModelInput, setResearchKeyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
 import { memberListInput, updateWorkspaceInput, setMemberRoleInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
+import type { CatalogRouter } from "../catalog/catalog.router";
 import type { CompaniesRouter } from "../companies/companies.router";
 import type { ContactsRouter } from "../contacts/contacts.router";
 import type { ConversationsRouter } from "../conversations/conversations.router";
@@ -37,7 +42,10 @@ import type { DashboardRouter } from "../dashboard/dashboard.router";
 import type { DealsRouter } from "../deals/deals.router";
 import type { FieldsRouter } from "../fields/fields.router";
 import type { GoogleRouter } from "../google/google.router";
+import type { InvoicesRouter } from "../invoices/invoices.router";
 import type { MicrosoftRouter } from "../microsoft/microsoft.router";
+import type { NotificationsRouter } from "../notifications/notifications.router";
+import type { ProjectsRouter } from "../projects/projects.router";
 import type { SearchRouter } from "../search/search.router";
 import type { SettingsRouter } from "../settings/settings.router";
 import type { SsoRouter } from "../sso/sso.router";
@@ -98,6 +106,11 @@ const appRouter = t.router({
     runNow: publicProcedure
       .input(agentRunNowInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<AgentsRouter["runNow"]>>)
+    }),
+  catalog: t.router({
+    list: publicProcedure
+      .input(catalogListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<CatalogRouter["list"]>>)
     }),
   companies: t.router({
     list: publicProcedure
@@ -336,6 +349,23 @@ const appRouter = t.router({
       .input(calendarEventInput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<GoogleRouter["event"]>>)
     }),
+  invoices: t.router({
+    list: publicProcedure
+      .input(invoiceListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["list"]>>),
+    byId: publicProcedure
+      .input(invoiceIdInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["byId"]>>),
+    create: publicProcedure
+      .input(invoiceCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["create"]>>),
+    send: publicProcedure
+      .input(invoiceIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["send"]>>),
+    setStatus: publicProcedure
+      .input(invoiceStatusInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<InvoicesRouter["setStatus"]>>)
+    }),
   microsoft: t.router({
     status: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<MicrosoftRouter["status"]>>),
@@ -348,6 +378,43 @@ const appRouter = t.router({
     setAutoCreate: publicProcedure
       .input(setOutlookAutoCreateInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<MicrosoftRouter["setAutoCreate"]>>)
+    }),
+  notifications: t.router({
+    list: publicProcedure
+      .input(notificationListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["list"]>>),
+    unreadCount: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["unreadCount"]>>),
+    markRead: publicProcedure
+      .input(notificationIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["markRead"]>>),
+    markAllRead: publicProcedure
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["markAllRead"]>>)
+    }),
+  projects: t.router({
+    list: publicProcedure
+      .input(projectListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["list"]>>),
+    byId: publicProcedure
+      .input(projectIdInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["byId"]>>),
+    options: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["options"]>>),
+    create: publicProcedure
+      .input(projectCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["create"]>>),
+    update: publicProcedure
+      .input(projectUpdateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["update"]>>),
+    delete: publicProcedure
+      .input(projectIdInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["delete"]>>),
+    createTask: publicProcedure
+      .input(projectTaskCreateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["createTask"]>>),
+    updateTask: publicProcedure
+      .input(projectTaskUpdateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["updateTask"]>>)
     }),
   search: t.router({
     quick: publicProcedure

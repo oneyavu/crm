@@ -102,6 +102,14 @@ export class EnvironmentVariables {
 	BLOB_READ_WRITE_TOKEN?: string;
 
 	@IsOptional()
+	@IsString()
+	RESEND_API_KEY?: string;
+
+	@IsOptional()
+	@IsString()
+	NOTIFICATION_EMAIL_FROM?: string;
+
+	@IsOptional()
 	@IsUrl(
 		{ require_tld: false, require_protocol: true },
 		{

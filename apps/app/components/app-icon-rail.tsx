@@ -2,11 +2,14 @@
 
 import Building from "@carbon/icons-react/es/Building";
 import type { CarbonIconType } from "@carbon/icons-react/es/CarbonIcon";
+import Catalog from "@carbon/icons-react/es/Catalog";
 import Chat from "@carbon/icons-react/es/Chat";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
 import Partnership from "@carbon/icons-react/es/Partnership";
+import Receipt from "@carbon/icons-react/es/Receipt";
 import Settings from "@carbon/icons-react/es/Settings";
+import Task from "@carbon/icons-react/es/Task";
 import UserMultiple from "@carbon/icons-react/es/UserMultiple";
 import { Button } from "@crm/ui/components/button";
 import { Icon } from "@crm/ui/components/icon";
@@ -55,6 +58,9 @@ const ITEMS: RailItem[] = [
 		match: "prefix",
 	},
 	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
+	{ title: "Projects", href: "/projects", icon: Task, match: "prefix" },
+	{ title: "Invoices", href: "/invoices", icon: Receipt, match: "prefix" },
+	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
 	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
 ];
 

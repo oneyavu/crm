@@ -21,16 +21,15 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: {
-		default: "Comp AI - CRM",
-		template: "%s · Comp AI CRM",
+		default: "VAYU CRM",
+		template: "%s · VAYU CRM",
 	},
-	description: "Customer Relationship Management for Comp AI",
+	description: "VAYU customer, project and revenue operations",
 	icons: {
 		icon: [
-			{ url: "/favicon.svg", type: "image/svg+xml" },
-			{ url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
+			{ url: "/vayu-site-icon-512.png", type: "image/png", sizes: "512x512" },
 		],
-		apple: "/apple-touch-icon.png",
+		apple: "/vayu-site-icon-512.png",
 	},
 	manifest: "/site.webmanifest",
 };

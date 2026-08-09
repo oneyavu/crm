@@ -12,6 +12,10 @@
 		{
 			"path": "/internal/telemetry/rollup",
 			"schedule": "0 7 * * *"
+		},
+		{
+			"path": "/internal/notifications/send",
+			"schedule": "0 8 * * *"
 		}
 	]
 }
