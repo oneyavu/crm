@@ -1,5 +1,3 @@
-export const dynamic = "force-dynamic";
-
 export function GET(request: Request) {
 	const origin = new URL(request.url).origin;
 	const body = `(function(){
