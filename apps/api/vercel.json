@@ -19,7 +19,7 @@
 		},
 		{
 			"path": "/internal/invoices/process",
-			"schedule": "0 * * * *"
+			"schedule": "0 9 * * *"
 		}
 	]
 }
