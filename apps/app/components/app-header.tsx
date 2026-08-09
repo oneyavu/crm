@@ -39,7 +39,7 @@ export function AppHeader({ user }: { user: User }) {
 	const label = workspaceLabel(workspace.data?.name);
 
 	return (
-		<header className="flex h-12 shrink-0 items-center gap-2 border-b px-3 [view-transition-name:app-header]">
+		<header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 [view-transition-name:app-header]">
 			<div className="flex shrink-0 items-center gap-1">
 				<Button
 					variant="ghost"
@@ -53,7 +53,7 @@ export function AppHeader({ user }: { user: User }) {
 				<Link
 					href={workspaceUrl()}
 					aria-label="Homepage"
-					className="hidden size-8 items-center justify-center text-foreground md:flex"
+					className="flex size-8 items-center justify-center text-foreground md:hidden"
 				>
 					<VayuMark className="size-7" />
 				</Link>
@@ -79,7 +79,7 @@ export function AppHeader({ user }: { user: User }) {
 export function AppHeaderFallback() {
 	return (
 		<header
-			className="flex h-12 shrink-0 items-center gap-2 border-b px-3 [view-transition-name:app-header]"
+			className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 [view-transition-name:app-header]"
 			aria-busy="true"
 		>
 			<div className="flex shrink-0 items-center gap-1">

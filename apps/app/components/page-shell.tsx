@@ -9,12 +9,12 @@ function PageShell({ className, ...props }: React.ComponentProps<"div">) {
 		<PageTransition>
 			<main
 				data-slot="page-shell-scroll"
-				className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-6"
+				className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-5 pb-5 md:px-8 md:pt-8 md:pb-8"
 			>
 				<div
 					data-slot="page-shell"
 					className={cn(
-						"mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6",
+						"mx-auto flex w-full min-w-0 max-w-[90rem] flex-1 flex-col gap-7",
 						className,
 					)}
 					{...props}
@@ -63,7 +63,7 @@ function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
 		<h1
 			data-slot="page-shell-title"
 			className={cn(
-				"col-start-1 row-start-1 min-w-0 self-center text-balance font-medium text-2xl tracking-tight md:text-3xl",
+				"col-start-1 row-start-1 min-w-0 self-center text-balance font-normal text-3xl tracking-[-0.03em] md:text-4xl",
 				className,
 			)}
 			{...props}

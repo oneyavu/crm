@@ -15,17 +15,23 @@
 
 ## Colour
 
-Flat white, neutral greys, and one brand green (`#006B4F`). The greys are
-untinted on purpose: there is no scene to tint them toward, and a tinted grey
-without a reason reads as indecision.
+VAYU CRM uses a near-black executive control surface by default, with warm neutral
+greys, coral (`#FF645F`) for the primary action and urgent movement, and mint
+(`#72F2AA`) for positive operational state. A restrained peach-to-lavender gradient
+is reserved for insight surfaces and never used as text decoration.
 
 **Only two things are filled**: `primary` for the action you want, `destructive`
 for the one you cannot undo. Everything else — secondary, outline, ghost — is a
 white chip in light and a dark chip in dark. That is what keeps a rep's eye
 landing on *go* or *stop* and skimming past the rest.
 
-`--primary` and `--destructive` hold the **same value in both themes**. A brand
-colour that changes per theme is not one colour, it is two, and both then need
-maintaining. The single exception is `--ring`, which lightens in dark: a fill
-carries the brand, but a ring only has to be seen, and `#006B4F` is too close to
-the dark background to register.
+Primary and destructive fills remain distinct: coral advances work, destructive
+red stops and confirms irreversible actions. Mint communicates success and is not
+used as a general action color. Light mode retains the same roles on warm off-white.
+
+## Structure
+
+The shell uses a full labelled navigation rail, hairline dividers, open content
+regions, tabular numerals, compact outlined secondary controls, and 5–8px functional
+radii. Avoid nested cards. Dense records use tables and a detail rail; dashboards
+use large numeric hierarchy and flat sections separated by rules.

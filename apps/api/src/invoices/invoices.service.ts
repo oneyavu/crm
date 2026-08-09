@@ -250,6 +250,23 @@ export class InvoicesService {
 			throw error;
 		}
 	}
+
+	async delete(id: string) {
+		try {
+			return await this.db.invoice.delete({
+				where: { id },
+				select: { id: true, number: true },
+			});
+		} catch (error) {
+			if (
+				error instanceof PrismaNamespace.PrismaClientKnownRequestError &&
+				error.code === "P2025"
+			) {
+				throw new NotFoundException(`No invoice with id ${id}.`);
+			}
+			throw error;
+		}
+	}
 }
 
 function serialize(row: InvoiceDetailRow): InvoiceDetail {

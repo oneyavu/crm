@@ -7,36 +7,36 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--background: #ffffff;
-	--foreground: #171717;
-	--card: #ffffff;
-	--card-foreground: #171717;
-	--popover: #ffffff;
-	--popover-foreground: #171717;
-	--primary: #006b4f;
-	--primary-foreground: #ffffff;
-	--secondary: #f4f4f4;
+	--background: #f7f4f1;
+	--foreground: #171616;
+	--card: #fffdfb;
+	--card-foreground: #171616;
+	--popover: #fffdfb;
+	--popover-foreground: #171616;
+	--primary: #f35f59;
+	--primary-foreground: #180d0d;
+	--secondary: #eee9e5;
 	--secondary-foreground: #171717;
-	--muted: #f4f4f4;
+	--muted: #eee9e5;
 	--muted-foreground: #6b6b6b;
-	--accent: #f4f4f4;
+	--accent: #e8e1dc;
 	--accent-foreground: #171717;
 	--tag: #ffffff;
 	--tag-foreground: #171717;
-	--destructive: #ae2e24;
+	--destructive: #dd3939;
 	--destructive-foreground: #ffffff;
-	--success: oklch(0.55 0.13 150);
-	--success-foreground: #ffffff;
+	--success: #45c982;
+	--success-foreground: #07140d;
 	--warning: oklch(0.62 0.14 65);
 	--warning-foreground: #ffffff;
 	--info: oklch(0.55 0.16 255);
 	--info-foreground: #ffffff;
-	--border: #e2e2e2;
-	--input: #e2e2e2;
+	--border: #d9d2cd;
+	--input: #d9d2cd;
 	--overlay: rgb(0 0 0 / 0.18);
-	--ring: #006b4f;
-	--chart-1: #00915f;
-	--chart-2: #2563eb;
+	--ring: #f35f59;
+	--chart-1: #f35f59;
+	--chart-2: #45c982;
 	--chart-3: #b45309;
 	--chart-4: #7c3aed;
 	--chart-5: #0891b2;
@@ -46,14 +46,16 @@
 	--severity-low: var(--muted-foreground);
 	--severity-info: oklch(0.71 0.01 286);
 	--severity-unknown: oklch(0.75 0 0);
-	--sidebar: #fafafa;
+	--sidebar: #f1ece8;
 	--sidebar-foreground: #171717;
-	--sidebar-primary: #006b4f;
+	--sidebar-primary: #f35f59;
 	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #f4f4f4;
+	--sidebar-accent: #e8e1dc;
 	--sidebar-accent-foreground: #171717;
 	--sidebar-border: #e2e2e2;
-	--sidebar-ring: #006b4f;
+	--sidebar-ring: #f35f59;
+	--insight-start: #f4a48c;
+	--insight-end: #8887c8;
 	--font-sans: var(--font-geist-sans, "Geist", sans-serif);
 	--font-mono: var(--font-geist-mono, "Geist Mono", monospace);
 	--radius: 5px;
@@ -76,36 +78,36 @@
 }
 
 .dark {
-	--background: #0f0f0f;
-	--foreground: #f5f5f5;
-	--card: #171717;
+	--background: #050505;
+	--foreground: #f4f3f1;
+	--card: #0b0b0c;
 	--card-foreground: #f5f5f5;
-	--popover: #171717;
+	--popover: #111214;
 	--popover-foreground: #f5f5f5;
-	--primary: #006b4f;
-	--primary-foreground: #ffffff;
-	--secondary: #1f1f1f;
+	--primary: #ff645f;
+	--primary-foreground: #170b0b;
+	--secondary: #151619;
 	--secondary-foreground: #f5f5f5;
-	--muted: #1f1f1f;
-	--muted-foreground: #a0a0a0;
-	--accent: #292929;
+	--muted: #151619;
+	--muted-foreground: #a7a7aa;
+	--accent: #202125;
 	--accent-foreground: #f5f5f5;
-	--tag: #292929;
+	--tag: #202125;
 	--tag-foreground: #f5f5f5;
-	--destructive: #ae2e24;
-	--destructive-foreground: #ffffff;
-	--success: oklch(0.72 0.16 155);
-	--success-foreground: oklch(0.205 0 0);
+	--destructive: #ff5c61;
+	--destructive-foreground: #170b0b;
+	--success: #72f2aa;
+	--success-foreground: #06140d;
 	--warning: oklch(0.8 0.15 75);
 	--warning-foreground: oklch(0.205 0 0);
 	--info: oklch(0.7 0.15 250);
 	--info-foreground: oklch(0.205 0 0);
-	--border: #2a2a2a;
-	--input: #2a2a2a;
+	--border: #27282c;
+	--input: #303136;
 	--overlay: rgb(0 0 0 / 0.55);
-	--ring: #40be96;
-	--chart-1: #0fa871;
-	--chart-2: #4b87f0;
+	--ring: #ff807c;
+	--chart-1: #ff645f;
+	--chart-2: #72f2aa;
 	--chart-3: #c07e22;
 	--chart-4: #9b7bf0;
 	--chart-5: #1e93b8;
@@ -115,14 +117,16 @@
 	--severity-low: var(--muted-foreground);
 	--severity-info: oklch(0.71 0.01 286);
 	--severity-unknown: oklch(0.5 0 0);
-	--sidebar: #171717;
+	--sidebar: #080809;
 	--sidebar-foreground: #f5f5f5;
-	--sidebar-primary: #006b4f;
-	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #292929;
+	--sidebar-primary: #ff645f;
+	--sidebar-primary-foreground: #170b0b;
+	--sidebar-accent: #18191c;
 	--sidebar-accent-foreground: #f5f5f5;
-	--sidebar-border: #2a2a2a;
-	--sidebar-ring: #40be96;
+	--sidebar-border: #27282c;
+	--sidebar-ring: #ff807c;
+	--insight-start: #f0a189;
+	--insight-end: #7779ba;
 	--font-sans: var(--font-geist-sans, "Geist", sans-serif);
 	--font-mono: var(--font-geist-mono, "Geist Mono", monospace);
 	--radius: 5px;
@@ -190,6 +194,8 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+	--color-insight-start: var(--insight-start);
+	--color-insight-end: var(--insight-end);
 
 	--animate-spinner-trace: spinner-trace 1.4s linear infinite;
 
@@ -221,6 +227,10 @@
 	body {
 		@apply bg-background text-foreground font-sans;
 	}
+	::selection {
+		background: color-mix(in srgb, var(--primary) 42%, transparent);
+		color: var(--foreground);
+	}
 
 	* {
 		scrollbar-width: thin;
@@ -248,6 +258,15 @@
 }
 
 @layer utilities {
+	.insight-panel {
+		background: linear-gradient(
+			145deg,
+			var(--insight-start),
+			var(--insight-end)
+		);
+		color: #fffaf7;
+	}
+
 	.bloom-low {
 		box-shadow: 0 0 4px var(--bloom-color, currentColor);
 	}
@@ -268,7 +287,7 @@
 
 	@media (prefers-reduced-motion: no-preference) {
 		.cds-icon {
-			transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+			transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
 		}
 
 		.cds-icon[data-motion="pop"] {
@@ -332,7 +351,7 @@
 				transform-origin: top center;
 			}
 			&[data-motion="bounce"] {
-				animation: cds-bounce 0.6s ease;
+				animation: cds-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 			}
 			&[data-motion="pulse"] {
 				animation: cds-pulse 0.9s ease-in-out infinite;
@@ -384,7 +403,7 @@
 		transform: rotate(4deg);
 	}
 }
-@keyframes cds-bounce {
+@keyframes cds-rise {
 	0%,
 	100% {
 		transform: translateY(0);
@@ -732,7 +751,7 @@
 	transition:
 		transform 0.2s,
 		opacity 0.2s;
-	transition-timing-function: cubic-bezier(0.2, 0.57, 0.67, 1.53);
+	transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .link-hover--bounce:hover::before,
@@ -746,7 +765,7 @@
 .link-hover--bounce span {
 	display: inline-block;
 	transform: translate3d(0, -4px, 0);
-	transition: transform 0.2s 0.05s cubic-bezier(0.2, 0.57, 0.67, 1.53);
+	transition: transform 0.2s 0.05s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .link-hover--bounce:hover span,

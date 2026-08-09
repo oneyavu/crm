@@ -52,4 +52,9 @@ export class InvoicesRouter {
 	async setStatus(@Input() input: z.infer<typeof invoiceStatusInput>) {
 		return this.invoices.setStatus(input.id, input.status);
 	}
+
+	@Mutation({ input: invoiceIdInput })
+	async delete(@Input("id") id: string) {
+		return this.invoices.delete(id);
+	}
 }

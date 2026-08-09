@@ -126,6 +126,25 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 				/>
 			</StatGroup>
 
+			<section className="insight-panel grid gap-4 rounded-lg p-5 md:grid-cols-[1fr_auto] md:items-end md:p-6">
+				<div className="max-w-xl">
+					<h2 className="text-lg font-medium tracking-tight">
+						Pipeline insight
+					</h2>
+					<p className="mt-2 text-sm/relaxed text-white/80">
+						{closingThisMonthTotal.count === 0
+							? "No open deals are scheduled to close this month. Review expected close dates to keep forecasting useful."
+							: `${formatCount(closingThisMonthTotal.count, "deal")} worth ${money(closingThisMonthTotal.valueCents)} are scheduled to close this month.`}
+					</p>
+				</div>
+				<div className="text-left md:text-right">
+					<p className="text-white/70 text-xs">Open pipeline</p>
+					<p className="mt-1 text-3xl tracking-[-0.03em] tabular-nums">
+						{money(pipeline.totalCents)}
+					</p>
+				</div>
+			</section>
+
 			{unconverted.count > 0 ? (
 				<p className="text-muted-foreground text-xs">
 					Every figure above is in {reportingCurrency}.{" "}

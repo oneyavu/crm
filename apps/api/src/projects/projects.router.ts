@@ -15,6 +15,7 @@ import {
 	projectIdInput,
 	projectListInput,
 	projectTaskCreateInput,
+	projectTaskIdInput,
 	projectTaskUpdateInput,
 	projectUpdateInput,
 } from "./projects.contracts";
@@ -77,5 +78,10 @@ export class ProjectsRouter {
 		@Input() input: z.infer<typeof projectTaskUpdateInput>,
 	) {
 		return this.projects.updateTask(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectTaskIdInput })
+	async deleteTask(@Input("id") id: string) {
+		return this.projects.deleteTask(id);
 	}
 }

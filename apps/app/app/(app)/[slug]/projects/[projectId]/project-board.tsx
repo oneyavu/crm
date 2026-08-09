@@ -1,11 +1,23 @@
 "use client";
 
 import ArrowLeft from "@carbon/icons-react/es/ArrowLeft";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@crm/ui/components/alert-dialog";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import { Input } from "@crm/ui/components/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -25,7 +37,13 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 	const workspaceUrl = useWorkspaceUrl();
+	const router = useRouter();
 	const [title, setTitle] = useState("");
+	const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
+	const [deletingTask, setDeletingTask] = useState<{
+		id: string;
+		title: string;
+	} | null>(null);
 	const project = useQuery(trpc.projects.byId.queryOptions({ id: projectId }));
 	const refresh = () =>
 		queryClient.invalidateQueries({
@@ -46,6 +64,28 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const deleteTask = useMutation(
+		trpc.projects.deleteTask.mutationOptions({
+			onSuccess: async (task) => {
+				setDeletingTask(null);
+				await refresh();
+				toast.success(`${task.title} deleted.`);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const deleteProject = useMutation(
+		trpc.projects.delete.mutationOptions({
+			onSuccess: async (deleted) => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.projects.list.queryKey(),
+				});
+				toast.success(`${deleted.name} deleted.`);
+				router.push(workspaceUrl("/projects"));
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 
 	return (
 		<PageShell>
@@ -59,12 +99,17 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 				</PageShellHeading>
 			</PageShellHeader>
 			<PageShellContent>
-				<Link
-					href={workspaceUrl("/projects")}
-					className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
-				>
-					<ArrowLeft /> Projects
-				</Link>
+				<div className="flex items-center justify-between gap-3">
+					<Link
+						href={workspaceUrl("/projects")}
+						className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
+					>
+						<ArrowLeft /> Projects
+					</Link>
+					<Button variant="outline" onClick={() => setDeleteProjectOpen(true)}>
+						<TrashCan data-icon="inline-start" /> Delete project
+					</Button>
+				</div>
 				<form
 					className="flex max-w-xl gap-2"
 					onSubmit={(event) => {
@@ -112,7 +157,24 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 										>
 											<p className="font-medium text-sm">{task.title}</p>
 											<div className="mt-3 flex items-center justify-between gap-2">
-												<Badge variant="outline">{label(task.priority)}</Badge>
+												<div className="flex items-center gap-1">
+													<Badge variant="outline">
+														{label(task.priority)}
+													</Badge>
+													<Button
+														variant="ghost"
+														size="icon-sm"
+														aria-label={`Delete ${task.title}`}
+														onClick={() =>
+															setDeletingTask({
+																id: task.id,
+																title: task.title,
+															})
+														}
+													>
+														<TrashCan />
+													</Button>
+												</div>
 												<select
 													aria-label={`Status for ${task.title}`}
 													className="h-8 rounded-md border bg-background px-2 text-xs"
@@ -137,6 +199,54 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 						</section>
 					))}
 				</div>
+				<AlertDialog
+					open={deleteProjectOpen}
+					onOpenChange={setDeleteProjectOpen}
+				>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Delete this project?</AlertDialogTitle>
+							<AlertDialogDescription>
+								This permanently deletes the project and all of its tasks.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								disabled={deleteProject.isPending}
+								onClick={() => deleteProject.mutate({ id: projectId })}
+							>
+								Delete project
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+				<AlertDialog
+					open={Boolean(deletingTask)}
+					onOpenChange={(open) => !open && setDeletingTask(null)}
+				>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Delete this task?</AlertDialogTitle>
+							<AlertDialogDescription>
+								{deletingTask?.title} will be permanently deleted.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								variant="destructive"
+								disabled={deleteTask.isPending}
+								onClick={() =>
+									deletingTask && deleteTask.mutate({ id: deletingTask.id })
+								}
+							>
+								Delete task
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
 			</PageShellContent>
 		</PageShell>
 	);

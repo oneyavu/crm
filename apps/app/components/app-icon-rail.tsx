@@ -6,6 +6,7 @@ import Catalog from "@carbon/icons-react/es/Catalog";
 import Chat from "@carbon/icons-react/es/Chat";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
+import DataBase from "@carbon/icons-react/es/DataBase";
 import Partnership from "@carbon/icons-react/es/Partnership";
 import Receipt from "@carbon/icons-react/es/Receipt";
 import Settings from "@carbon/icons-react/es/Settings";
@@ -32,6 +33,7 @@ import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-si
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { VayuWordmark } from "@/components/vayu-brand";
 
 type RailItem = {
 	title: string;
@@ -60,6 +62,7 @@ const ITEMS: RailItem[] = [
 	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
 	{ title: "Projects", href: "/projects", icon: Task, match: "prefix" },
 	{ title: "Invoices", href: "/invoices", icon: Receipt, match: "prefix" },
+	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
 	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
 	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
 ];
@@ -87,9 +90,8 @@ function RailLink({
 				<Button
 					asChild
 					variant="ghost"
-					size="icon"
 					className={cn(
-						"text-muted-foreground",
+						"w-full justify-start gap-3 px-3 text-muted-foreground",
 						active &&
 							"bg-muted text-foreground hover:bg-muted hover:text-foreground",
 					)}
@@ -103,7 +105,7 @@ function RailLink({
 						transitionTypes={["nav-lateral"]}
 					>
 						<Icon icon={item.icon} />
-						<span className="sr-only">{item.title}</span>
+						<span>{item.title}</span>
 					</Link>
 				</Button>
 			</TooltipTrigger>
@@ -193,18 +195,20 @@ export function AppIconRailFallback() {
 		<nav
 			aria-label="Primary"
 			aria-busy="true"
-			className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r py-3 md:flex [view-transition-name:app-rail]"
+			className="hidden w-52 shrink-0 flex-col gap-1 border-r bg-sidebar p-3 md:flex [view-transition-name:app-rail]"
 		>
+			<div className="mb-4 flex h-9 items-center px-2">
+				<VayuWordmark />
+			</div>
 			{ITEMS.map((item) => (
 				<Button
 					key={item.href}
 					variant="ghost"
-					size="icon"
 					disabled
-					className="text-muted-foreground"
+					className="w-full justify-start gap-3 px-3 text-muted-foreground"
 				>
 					<Icon icon={item.icon} />
-					<span className="sr-only">{item.title}</span>
+					<span>{item.title}</span>
 				</Button>
 			))}
 		</nav>
@@ -235,8 +239,11 @@ export function AppIconRail() {
 		<>
 			<nav
 				aria-label="Primary"
-				className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r py-3 md:flex [view-transition-name:app-rail]"
+				className="hidden w-52 shrink-0 flex-col gap-1 border-r bg-sidebar p-3 md:flex [view-transition-name:app-rail]"
 			>
+				<div className="mb-4 flex h-9 items-center px-2">
+					<VayuWordmark />
+				</div>
 				{items.map((item) => (
 					<RailLink
 						key={item.href}

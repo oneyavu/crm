@@ -377,6 +377,23 @@ export class ProjectsService {
 		return { id: task.id, projectId: task.projectId, status: task.status };
 	}
 
+	async deleteTask(id: string) {
+		try {
+			return await this.db.projectTask.delete({
+				where: { id },
+				select: { id: true, title: true, projectId: true },
+			});
+		} catch (error) {
+			if (
+				error instanceof PrismaNamespace.PrismaClientKnownRequestError &&
+				error.code === "P2025"
+			) {
+				throw new NotFoundException(`No task with id ${id}.`);
+			}
+			throw error;
+		}
+	}
+
 	private search(q: string): Prisma.ProjectWhereInput {
 		const term = q.trim();
 		if (!term) return {};

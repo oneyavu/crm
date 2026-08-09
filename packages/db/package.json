@@ -31,6 +31,7 @@
 		"db:reset": "bun scripts/require-local-db.ts db:reset && prisma migrate reset",
 		"db:seed": "bun scripts/require-local-db.ts db:seed && prisma db seed",
 		"db:studio": "prisma studio",
+		"perfex:import": "bun scripts/perfex-import.ts",
 		"test": "bun test",
 		"dev:prepare": "bun scripts/prepare-dev.ts",
 		"lint": "biome check .",

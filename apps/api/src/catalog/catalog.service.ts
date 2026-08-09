@@ -1,5 +1,5 @@
 import { type CatalogItemKind, type Db, type Prisma } from "@crm/db";
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDatabase } from "../database/database.constants";
 
 @Injectable()
@@ -25,5 +25,35 @@ export class CatalogService {
 			where,
 			orderBy: [{ position: "asc" }, { name: "asc" }],
 		});
+	}
+
+	async create(input: {
+		code: string;
+		name: string;
+		kind: CatalogItemKind;
+		category: string;
+		summary: string;
+		sourceUrl: string;
+	}) {
+		return this.db.catalogItem.create({
+			data: {
+				...input,
+				code: input.code.trim().toUpperCase(),
+				name: input.name.trim(),
+				category: input.category.trim(),
+				summary: input.summary.trim(),
+				outcomes: [],
+				capabilities: [],
+				measures: [],
+			},
+			select: { id: true, code: true, name: true },
+		});
+	}
+
+	async delete(id: string) {
+		const result = await this.db.catalogItem.deleteMany({ where: { id } });
+		if (result.count === 0)
+			throw new NotFoundException(`No catalog item with id ${id}.`);
+		return { id };
 	}
 }

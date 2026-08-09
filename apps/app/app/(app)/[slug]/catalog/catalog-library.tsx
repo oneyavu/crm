@@ -1,9 +1,41 @@
 "use client";
 
+import Add from "@carbon/icons-react/es/Add";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@crm/ui/components/alert-dialog";
 import { Badge } from "@crm/ui/components/badge";
+import { Button } from "@crm/ui/components/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@crm/ui/components/dialog";
+import { Field, FieldGroup, FieldLabel } from "@crm/ui/components/field";
 import { Input } from "@crm/ui/components/input";
-import { useQuery } from "@tanstack/react-query";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@crm/ui/components/select";
+import { Textarea } from "@crm/ui/components/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 
 const KINDS = [
@@ -19,8 +51,46 @@ export function CatalogLibrary() {
 	const trpc = useTRPC();
 	const [q, setQ] = useState("");
 	const [kind, setKind] = useState("");
+	const [open, setOpen] = useState(false);
+	const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(
+		null,
+	);
+	const [code, setCode] = useState("");
+	const [name, setName] = useState("");
+	const [category, setCategory] = useState("");
+	const [summary, setSummary] = useState("");
+	const [newKind, setNewKind] = useState("SERVICE");
+	const queryClient = useQueryClient();
 	const catalog = useQuery(
 		trpc.catalog.list.queryOptions({ q, kind: (kind || null) as never }),
+	);
+	const create = useMutation(
+		trpc.catalog.create.mutationOptions({
+			onSuccess: async (item) => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.catalog.list.queryKey(),
+				});
+				setOpen(false);
+				setCode("");
+				setName("");
+				setCategory("");
+				setSummary("");
+				toast.success(`${item.name} added.`);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const remove = useMutation(
+		trpc.catalog.delete.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.catalog.list.queryKey(),
+				});
+				setDeleting(null);
+				toast.success("Catalog item deleted.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
 	);
 	return (
 		<div className="flex flex-col gap-5">
@@ -34,15 +104,19 @@ export function CatalogLibrary() {
 				/>
 				<div className="flex flex-wrap gap-2">
 					{KINDS.map(([value, label]) => (
-						<button
+						<Button
 							key={value}
 							type="button"
 							onClick={() => setKind(value)}
-							className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${kind === value ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"}`}
+							variant={kind === value ? "default" : "outline"}
+							size="sm"
 						>
 							{label}
-						</button>
+						</Button>
 					))}
+					<Button onClick={() => setOpen(true)}>
+						<Add data-icon="inline-start" /> Add item
+					</Button>
 				</div>
 			</div>
 			<div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -56,7 +130,17 @@ export function CatalogLibrary() {
 								<p className="font-mono text-primary text-xs">{item.code}</p>
 								<h2 className="mt-1 font-medium">{item.name}</h2>
 							</div>
-							<Badge variant="outline">{item.category}</Badge>
+							<div className="flex items-center gap-1">
+								<Badge variant="outline">{item.category}</Badge>
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label={`Delete ${item.name}`}
+									onClick={() => setDeleting({ id: item.id, name: item.name })}
+								>
+									<TrashCan />
+								</Button>
+							</div>
 						</div>
 						<p className="text-muted-foreground text-sm/relaxed">
 							{item.summary}
@@ -93,6 +177,125 @@ export function CatalogLibrary() {
 					</article>
 				))}
 			</div>
+			<Dialog open={open} onOpenChange={setOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Add catalog item</DialogTitle>
+						<DialogDescription>
+							Add a product, service, use case or VAYU capability.
+						</DialogDescription>
+					</DialogHeader>
+					<form
+						onSubmit={(event) => {
+							event.preventDefault();
+							create.mutate({
+								code,
+								name,
+								kind: newKind as never,
+								category,
+								summary,
+								sourceUrl: "https://onevayu.com",
+							});
+						}}
+					>
+						<FieldGroup>
+							<div className="grid grid-cols-2 gap-4">
+								<Field>
+									<FieldLabel htmlFor="catalog-code">Code</FieldLabel>
+									<Input
+										id="catalog-code"
+										required
+										value={code}
+										onChange={(event) => setCode(event.target.value)}
+									/>
+								</Field>
+								<Field>
+									<FieldLabel>Kind</FieldLabel>
+									<Select value={newKind} onValueChange={setNewKind}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												{KINDS.slice(1).map(([value, label]) => (
+													<SelectItem key={value} value={value}>
+														{label}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+								</Field>
+							</div>
+							<Field>
+								<FieldLabel htmlFor="catalog-name">Name</FieldLabel>
+								<Input
+									id="catalog-name"
+									required
+									value={name}
+									onChange={(event) => setName(event.target.value)}
+								/>
+							</Field>
+							<Field>
+								<FieldLabel htmlFor="catalog-category">Category</FieldLabel>
+								<Input
+									id="catalog-category"
+									required
+									value={category}
+									onChange={(event) => setCategory(event.target.value)}
+								/>
+							</Field>
+							<Field>
+								<FieldLabel htmlFor="catalog-summary">Summary</FieldLabel>
+								<Textarea
+									id="catalog-summary"
+									required
+									value={summary}
+									onChange={(event) => setSummary(event.target.value)}
+								/>
+							</Field>
+						</FieldGroup>
+						<DialogFooter className="mt-5">
+							<Button
+								type="submit"
+								disabled={
+									!code.trim() ||
+									!name.trim() ||
+									!category.trim() ||
+									!summary.trim() ||
+									create.isPending
+								}
+							>
+								Add item
+							</Button>
+						</DialogFooter>
+					</form>
+				</DialogContent>
+			</Dialog>
+			<AlertDialog
+				open={Boolean(deleting)}
+				onOpenChange={(value) => !value && setDeleting(null)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete this catalog item?</AlertDialogTitle>
+						<AlertDialogDescription>
+							{deleting?.name} will be removed from the catalog. Existing
+							invoice lines will keep their descriptions.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							variant="destructive"
+							disabled={remove.isPending}
+							onClick={() => deleting && remove.mutate({ id: deleting.id })}
+						>
+							Delete item
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

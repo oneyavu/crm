@@ -26,6 +26,7 @@ export const projectListInput = listInput.extend({
 export type ProjectListInput = z.infer<typeof projectListInput>;
 
 export const projectIdInput = z.object({ id: z.string().min(1) });
+export const projectTaskIdInput = z.object({ id: z.string().min(1) });
 
 export const projectCreateInput = z.object({
 	name: z.string().trim().min(1, "A project needs a name."),

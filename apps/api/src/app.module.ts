@@ -27,6 +27,7 @@ import { MailboxModule } from "./mailbox/mailbox.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { ProjectsModule } from "./projects/projects.module";
+import { RecordsModule } from "./records/records.module";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
 import { SsoModule } from "./sso/sso.module";
@@ -69,6 +70,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		MicrosoftModule,
 		NotificationsModule,
 		ProjectsModule,
+		RecordsModule,
 		SyncModule,
 		SettingsModule,
 		WorkspaceModule,
