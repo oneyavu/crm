@@ -53,6 +53,7 @@ export class PaperclipBridgeController {
 	}
 
 	private authorize(authorization?: string) {
+		// The local bridge is the only anonymous caller allowed on these routes.
 		if (!this.secret) throw new ServiceUnavailableException("Bridge not configured.");
 		if (!timingSafeEquals(authorization ?? "", `Bearer ${this.secret}`)) {
 			throw new ForbiddenException();
