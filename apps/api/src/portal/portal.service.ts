@@ -25,6 +25,7 @@ import type {
 	createServiceRequestInput,
 	portalAiChatInput,
 	portalGrantInput,
+	portalLiveChatInput,
 	serviceRequestReplyInput,
 	serviceRequestStatusInput,
 	submitInvoicePaymentInput,
@@ -180,6 +181,7 @@ export class PortalService {
 					},
 				},
 				invoices: {
+					where: { status: { not: "DRAFT" } },
 					orderBy: { issueDate: "desc" },
 					select: {
 						id: true,
@@ -284,8 +286,10 @@ export class PortalService {
 					take: 10,
 					select: {
 						id: true,
+						subject: true,
 						status: true,
 						lastMessageAt: true,
+						assignedToUser: { select: { name: true } },
 						messages: {
 							orderBy: { createdAt: "asc" },
 							take: 100,
@@ -312,6 +316,21 @@ export class PortalService {
 				accountType: true,
 				swiftCode: true,
 				branchCode: true,
+			},
+		});
+		const portfolio = await this.db.catalogItem.findMany({
+			where: { active: true },
+			orderBy: [{ position: "asc" }, { name: "asc" }],
+			select: {
+				id: true,
+				code: true,
+				name: true,
+				kind: true,
+				category: true,
+				summary: true,
+				outcomes: true,
+				capabilities: true,
+				sourceUrl: true,
 			},
 		});
 		const projects = company.projects;
@@ -351,6 +370,7 @@ export class PortalService {
 			...company,
 			invoices,
 			paymentAccounts,
+			portfolio,
 			ai: { configured: this.ai.configured(), model: "GPT-5.5" },
 			analytics: {
 				activeProjects: projects.filter(
@@ -532,6 +552,7 @@ export class PortalService {
 						companyId: access.companyId,
 						source: SupportConversationSource.PORTAL,
 						visitorEmail: user.email.toLowerCase(),
+						subject: "AI_ASSISTANT",
 					},
 				})
 			: null;
@@ -541,6 +562,7 @@ export class PortalService {
 					source: SupportConversationSource.PORTAL,
 					companyId: access.companyId,
 					visitorEmail: user.email.toLowerCase(),
+					subject: "AI_ASSISTANT",
 				},
 			});
 		}
@@ -625,6 +647,61 @@ export class PortalService {
 			data: { lastMessageAt: new Date() },
 		});
 		return { conversationId: conversation.id, reply };
+	}
+
+	async liveChat(input: z.infer<typeof portalLiveChatInput>, user: PortalUser) {
+		const access = await this.accessFor(user);
+		let conversation = input.conversationId
+			? await this.db.supportConversation.findFirst({
+					where: {
+						id: input.conversationId,
+						companyId: access.companyId,
+						source: SupportConversationSource.PORTAL,
+						visitorEmail: user.email.toLowerCase(),
+						subject: "LIVE_SUPPORT",
+					},
+				})
+			: await this.db.supportConversation.findFirst({
+					where: {
+						companyId: access.companyId,
+						source: SupportConversationSource.PORTAL,
+						visitorEmail: user.email.toLowerCase(),
+						subject: "LIVE_SUPPORT",
+						status: { not: "CLOSED" },
+					},
+					orderBy: { lastMessageAt: "desc" },
+				});
+		if (!conversation) {
+			conversation = await this.db.supportConversation.create({
+				data: {
+					source: SupportConversationSource.PORTAL,
+					status: "WAITING_FOR_AGENT",
+					subject: "LIVE_SUPPORT",
+					companyId: access.companyId,
+					visitorEmail: user.email.toLowerCase(),
+				},
+			});
+		}
+		await this.db.$transaction([
+			this.db.supportMessage.create({
+				data: {
+					conversationId: conversation.id,
+					role: SupportMessageRole.VISITOR,
+					content: input.message,
+				},
+			}),
+			this.db.supportConversation.update({
+				where: { id: conversation.id },
+				data: {
+					status:
+						conversation.status === "LIVE_AGENT"
+							? "LIVE_AGENT"
+							: "WAITING_FOR_AGENT",
+					lastMessageAt: new Date(),
+				},
+			}),
+		]);
+		return { conversationId: conversation.id };
 	}
 
 	private async accessFor(user: PortalUser) {

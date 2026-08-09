@@ -35,6 +35,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 type View =
 	| "overview"
+	| "portfolio"
 	| "projects"
 	| "billing"
 	| "requests"
@@ -45,20 +46,24 @@ type PortalData = inferRouterOutputs<AppRouter>["portal"]["mine"];
 type PortalProject = PortalData["projects"][number];
 type PortalConversation = PortalData["supportConversations"][number];
 type PortalInvoice = PortalData["invoices"][number];
+type PortfolioItem = PortalData["portfolio"][number];
 
 const NAV: Array<{ id: View; label: string; icon: typeof Dashboard }> = [
 	{ id: "overview", label: "Overview", icon: Dashboard },
+	{ id: "portfolio", label: "Service Portfolio", icon: Document },
 	{ id: "projects", label: "Projects", icon: Task },
 	{ id: "billing", label: "Billing", icon: Receipt },
 	{ id: "requests", label: "Service Requests", icon: Chat },
 	{ id: "meetings", label: "Meetings", icon: Calendar },
-	{ id: "assistant", label: "AI Assistant", icon: CheckmarkFilled },
+	{ id: "assistant", label: "Chat", icon: CheckmarkFilled },
 ];
 
 export function ClientPortal({ userName }: { userName: string }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
-	const portal = useQuery(trpc.portal.mine.queryOptions());
+	const portal = useQuery(
+		trpc.portal.mine.queryOptions(undefined, { refetchInterval: 5_000 }),
+	);
 	const [view, setView] = useState<View>("overview");
 	const [requestOpen, setRequestOpen] = useState(false);
 	const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
@@ -69,6 +74,8 @@ export function ClientPortal({ userName }: { userName: string }) {
 	);
 	const [payInvoiceId, setPayInvoiceId] = useState<string | null>(null);
 	const [assistantMessage, setAssistantMessage] = useState("");
+	const [liveMessage, setLiveMessage] = useState("");
+	const [chatMode, setChatMode] = useState<"ai" | "live">("ai");
 	const [requestTitle, setRequestTitle] = useState("");
 	const [requestDescription, setRequestDescription] = useState("");
 	const [requestCategory, setRequestCategory] = useState("SUPPORT");
@@ -109,6 +116,17 @@ export function ClientPortal({ userName }: { userName: string }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const liveChat = useMutation(
+		trpc.portal.liveChat.mutationOptions({
+			onSuccess: async () => {
+				setLiveMessage("");
+				await refresh();
+				setChatMode("live");
+				setView("assistant");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 
 	const data = portal.data;
 	const selectedRequest =
@@ -118,8 +136,29 @@ export function ClientPortal({ userName }: { userName: string }) {
 		data?.invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
 	const payInvoice =
 		data?.invoices.find((invoice) => invoice.id === payInvoiceId) ?? null;
-	const aiConversation = data?.supportConversations[0] ?? null;
+	const aiConversation =
+		data?.supportConversations.find(
+			(conversation) => conversation.subject === "AI_ASSISTANT",
+		) ?? null;
+	const liveConversation =
+		data?.supportConversations.find(
+			(conversation) => conversation.subject === "LIVE_SUPPORT",
+		) ?? null;
 	const currency = data?.invoices[0]?.currency ?? "JMD";
+	const navigation = data
+		? NAV.filter(
+				(item) =>
+					item.id === "overview" ||
+					item.id === "portfolio" ||
+					item.id === "requests" ||
+					item.id === "assistant" ||
+					(item.id === "projects" && data.projects.length > 0) ||
+					(item.id === "billing" && data.invoices.length > 0) ||
+					(item.id === "meetings" &&
+						(data.calendarEvents.length > 0 ||
+							data.meetingSummaries.length > 0)),
+			)
+		: NAV;
 
 	return (
 		<div className="min-h-svh bg-[#090a0a] text-[#f5f3ef]">
@@ -128,12 +167,7 @@ export function ClientPortal({ userName }: { userName: string }) {
 					<div className="flex size-9 items-center justify-center rounded-lg bg-gradient-to-br from-[#71ed75] to-[#55d9bd] text-black">
 						<VayuMark className="size-7" />
 					</div>
-					<div>
-						<p className="font-medium">VAYU Client Control</p>
-						<p className="text-[11px] text-white/40">
-							Delivery, billing and support
-						</p>
-					</div>
+					<span className="sr-only">Client portal</span>
 					<div className="ml-auto flex items-center gap-3">
 						{data?.ai.configured ? (
 							<span className="hidden items-center gap-2 text-xs text-white/55 sm:flex">
@@ -158,10 +192,10 @@ export function ClientPortal({ userName }: { userName: string }) {
 			<div className="mx-auto flex max-w-[96rem]">
 				<aside className="sticky top-[65px] hidden h-[calc(100svh-65px)] w-60 shrink-0 flex-col border-white/10 border-r p-4 md:flex">
 					<div className="mb-8 px-3 py-2">
-						<VayuWordmark />
+						<VayuWordmark className="size-10" />
 					</div>
 					<nav className="space-y-1">
-						{NAV.map((item) => {
+						{navigation.map((item) => {
 							const Icon = item.icon;
 							return (
 								<button
@@ -179,12 +213,15 @@ export function ClientPortal({ userName }: { userName: string }) {
 					<div className="mt-auto rounded-xl border border-white/10 bg-white/[0.035] p-3">
 						<p className="truncate text-sm">{data?.name ?? "Client portal"}</p>
 						<p className="mt-1 truncate text-xs text-white/35">{userName}</p>
+						<p className="mt-3 border-white/10 border-t pt-3 text-[9px] tracking-[0.12em] text-white/30 uppercase">
+							V-OS · MSP by VAYU LIMITED
+						</p>
 					</div>
 				</aside>
 
 				<main className="min-w-0 flex-1 px-4 py-6 sm:px-7 lg:px-10 lg:py-9">
 					<div className="mb-6 flex gap-2 overflow-x-auto pb-1 md:hidden">
-						{NAV.map((item) => (
+						{navigation.map((item) => (
 							<Button
 								key={item.id}
 								size="sm"
@@ -203,6 +240,18 @@ export function ClientPortal({ userName }: { userName: string }) {
 								<Overview data={data} currency={currency} onView={setView} />
 							) : null}
 							{view === "projects" ? <Projects data={data} /> : null}
+							{view === "portfolio" ? (
+								<ServicePortfolio
+									data={data}
+									pending={liveChat.isPending}
+									onRequest={(item) =>
+										liveChat.mutate({
+											conversationId: liveConversation?.id ?? null,
+											message: `I would like to request ${item.name} (${item.code}). Please connect me with an agent to confirm scope and create the formal service request.`,
+										})
+									}
+								/>
+							) : null}
 							{view === "billing" ? (
 								<Billing
 									data={data}
@@ -220,16 +269,28 @@ export function ClientPortal({ userName }: { userName: string }) {
 							) : null}
 							{view === "meetings" ? <Meetings data={data} /> : null}
 							{view === "assistant" ? (
-								<Assistant
+								<ClientChat
 									data={data}
-									conversation={aiConversation}
-									value={assistantMessage}
-									onChange={setAssistantMessage}
-									pending={aiChat.isPending}
-									onSend={() =>
+									mode={chatMode}
+									onMode={setChatMode}
+									aiConversation={aiConversation}
+									liveConversation={liveConversation}
+									aiValue={assistantMessage}
+									onAiChange={setAssistantMessage}
+									aiPending={aiChat.isPending}
+									onAiSend={() =>
 										aiChat.mutate({
 											conversationId: aiConversation?.id ?? null,
 											message: assistantMessage,
+										})
+									}
+									liveValue={liveMessage}
+									onLiveChange={setLiveMessage}
+									livePending={liveChat.isPending}
+									onLiveSend={() =>
+										liveChat.mutate({
+											conversationId: liveConversation?.id ?? null,
+											message: liveMessage,
 										})
 									}
 								/>
@@ -244,7 +305,7 @@ export function ClientPortal({ userName }: { userName: string }) {
 					<DialogHeader>
 						<DialogTitle>New service request</DialogTitle>
 						<DialogDescription>
-							Send a trackable request directly to your VAYU team.
+							Send a trackable request directly to your account team.
 						</DialogDescription>
 					</DialogHeader>
 					<form
@@ -383,7 +444,7 @@ export function ClientPortal({ userName }: { userName: string }) {
 											<span className="font-medium text-white/75">
 												{message.source === "CLIENT"
 													? "You"
-													: (message.authorUser?.name ?? "VAYU Support")}
+													: (message.authorUser?.name ?? "Live support")}
 											</span>
 											<span className="text-white/35">
 												{dateTimeLabel(message.createdAt)}
@@ -566,7 +627,7 @@ function Overview({
 			<PageHeading
 				eyebrow="Client workspace"
 				title={`Welcome to ${data.name}`}
-				description="A live view of delivery, finances, support and scheduled decisions with your VAYU team."
+				description="A live view of delivery, finances, support and scheduled decisions with your account team."
 			/>
 			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 				<Metric
@@ -943,8 +1004,8 @@ function PaymentDialog({
 							</p>
 							<DialogTitle>Pay invoice {invoice.number}</DialogTitle>
 							<DialogDescription>
-								Submit transfer details for VAYU to verify. This does not mark
-								the invoice paid automatically.
+								Submit transfer details for the billing team to verify. This
+								does not mark the invoice paid automatically.
 							</DialogDescription>
 						</DialogHeader>
 
@@ -1040,8 +1101,8 @@ function PaymentDialog({
 							</section>
 						) : (
 							<div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/55">
-								JMD bank instructions are awaiting setup. Contact VAYU Billing
-								or choose USD.
+								JMD bank instructions are awaiting setup. Contact the billing
+								team or choose USD.
 							</div>
 						)}
 
@@ -1338,44 +1399,151 @@ function Meetings({ data }: { data: PortalData }) {
 	);
 }
 
-function Assistant({
+function ServicePortfolio({
 	data,
-	conversation,
-	value,
-	onChange,
 	pending,
-	onSend,
+	onRequest,
 }: {
 	data: PortalData;
-	conversation: PortalConversation | null;
-	value: string;
-	onChange: (value: string) => void;
 	pending: boolean;
-	onSend: () => void;
+	onRequest: (item: PortfolioItem) => void;
 }) {
+	return (
+		<div>
+			<PageHeading
+				eyebrow="Viewer access"
+				title="Service Portfolio"
+				description="Review available products and services. Requesting an item opens a live agent conversation so the team can confirm scope before creating a formal service request."
+			/>
+			<div className="grid gap-4 lg:grid-cols-2">
+				{data.portfolio.map((item) => (
+					<article
+						key={item.id}
+						className="group flex min-h-64 flex-col rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_top_right,rgba(113,237,117,.1),transparent_38%),rgba(255,255,255,.025)] p-6 transition hover:border-[#71ed75]/30"
+					>
+						<div className="flex items-start justify-between gap-4">
+							<div>
+								<p className="font-mono text-[10px] tracking-[0.16em] text-[#71ed75] uppercase">
+									{item.code} · {label(item.kind)}
+								</p>
+								<h2 className="mt-3 text-xl font-medium tracking-tight">
+									{item.name}
+								</h2>
+							</div>
+							<span className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/40">
+								{item.category}
+							</span>
+						</div>
+						<p className="mt-4 max-w-[65ch] text-sm leading-6 text-white/55">
+							{item.summary}
+						</p>
+						{item.outcomes.length > 0 ? (
+							<ul className="mt-5 grid gap-2 text-xs text-white/45">
+								{item.outcomes.slice(0, 3).map((outcome) => (
+									<li key={outcome} className="flex gap-2">
+										<span className="mt-1 size-1.5 shrink-0 rounded-full bg-[#71ed75]" />
+										{outcome}
+									</li>
+								))}
+							</ul>
+						) : null}
+						<Button
+							className="mt-auto w-full sm:w-fit"
+							disabled={pending}
+							onClick={() => onRequest(item)}
+						>
+							<Chat data-icon="inline-start" /> Request this service
+						</Button>
+					</article>
+				))}
+			</div>
+			{data.portfolio.length === 0 ? (
+				<Empty text="The service portfolio is being prepared." />
+			) : null}
+		</div>
+	);
+}
+
+function ClientChat({
+	data,
+	mode,
+	onMode,
+	aiConversation,
+	liveConversation,
+	aiValue,
+	onAiChange,
+	aiPending,
+	onAiSend,
+	liveValue,
+	onLiveChange,
+	livePending,
+	onLiveSend,
+}: {
+	data: PortalData;
+	mode: "ai" | "live";
+	onMode: (mode: "ai" | "live") => void;
+	aiConversation: PortalConversation | null;
+	liveConversation: PortalConversation | null;
+	aiValue: string;
+	onAiChange: (value: string) => void;
+	aiPending: boolean;
+	onAiSend: () => void;
+	liveValue: string;
+	onLiveChange: (value: string) => void;
+	livePending: boolean;
+	onLiveSend: () => void;
+}) {
+	const aiMode = mode === "ai";
+	const conversation = aiMode ? aiConversation : liveConversation;
 	const messages = conversation?.messages ?? [];
+	const value = aiMode ? aiValue : liveValue;
+	const pending = aiMode ? aiPending : livePending;
+	const onChange = aiMode ? onAiChange : onLiveChange;
+	const onSend = aiMode ? onAiSend : onLiveSend;
 	return (
 		<div className="mx-auto max-w-4xl">
 			<PageHeading
-				eyebrow="VAYU intelligence"
-				title="Client AI Assistant"
-				description="Ask GPT-5.5 about your projects, invoices, meetings and service requests. Answers are scoped to your authenticated client account."
+				eyebrow="Secure account conversations"
+				title="AI and live support"
+				description="Use the AI assistant for immediate account insights or continue with a member of the support team. Both channels are restricted to your authenticated client account."
 			/>
 			<section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]">
-				<div className="flex items-center gap-3 border-white/10 border-b p-4">
+				<div className="flex flex-col gap-4 border-white/10 border-b p-4 sm:flex-row sm:items-center">
 					<div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#71ed75] to-[#55d9bd]">
 						<VayuMark className="size-7" />
 					</div>
-					<div>
-						<p className="font-medium">VAYU Assistant</p>
+					<div className="min-w-0">
+						<p className="font-medium">
+							{aiMode ? "AI assistant" : "Live agent"}
+						</p>
 						<p className="flex items-center gap-2 text-xs text-white/40">
 							<span
-								className={`size-2 rounded-full ${data.ai.configured ? "bg-[#71ed75]" : "bg-[#7bff5a]"}`}
+								className={`size-2 rounded-full ${aiMode ? (data.ai.configured ? "bg-[#71ed75]" : "bg-white/25") : conversation?.status === "LIVE_AGENT" ? "bg-[#71ed75]" : "bg-[#f4c86a]"}`}
 							/>
-							{data.ai.configured
-								? "GPT-5.5 connected"
-								: "OpenAI authorization required"}
+							{aiMode
+								? data.ai.configured
+									? "Connected"
+									: "Authorization required"
+								: conversation?.status === "LIVE_AGENT"
+									? `Connected${conversation.assignedToUser?.name ? ` with ${conversation.assignedToUser.name}` : ""}`
+									: "Support queue"}
 						</p>
+					</div>
+					<div className="flex rounded-lg border border-white/10 bg-black/20 p-1 sm:ml-auto">
+						<button
+							type="button"
+							onClick={() => onMode("ai")}
+							className={`rounded-md px-3 py-2 text-xs font-medium transition ${aiMode ? "bg-[#71ed75] text-[#071207]" : "text-white/50 hover:text-white"}`}
+						>
+							AI assistant
+						</button>
+						<button
+							type="button"
+							onClick={() => onMode("live")}
+							className={`rounded-md px-3 py-2 text-xs font-medium transition ${!aiMode ? "bg-[#71ed75] text-[#071207]" : "text-white/50 hover:text-white"}`}
+						>
+							Live agent
+						</button>
 					</div>
 				</div>
 				<div className="min-h-[420px] space-y-4 p-5">
@@ -1384,10 +1552,15 @@ function Assistant({
 							<div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[#7bff5a]/10 text-[#7bff5a]">
 								<Chat />
 							</div>
-							<h2 className="mt-4 text-lg">What can I help you understand?</h2>
+							<h2 className="mt-4 text-lg">
+								{aiMode
+									? "What would you like to understand?"
+									: "Talk with the support team"}
+							</h2>
 							<p className="mt-2 text-sm text-white/40">
-								Try “Which tasks are overdue?”, “Explain my outstanding
-								invoices”, or “Summarize our latest meeting.”
+								{aiMode
+									? "Ask about project progress, invoices, service requests or client-visible meeting notes."
+									: "Send a message here. It will enter the live support queue and replies will remain in this conversation."}
 							</p>
 						</div>
 					) : (
@@ -1406,7 +1579,9 @@ function Assistant({
 					)}
 					{pending ? (
 						<p className="text-xs text-white/35">
-							GPT-5.5 is reviewing your client workspace…
+							{aiMode
+								? "Reviewing your client workspace…"
+								: "Sending your message…"}
 						</p>
 					) : null}
 				</div>
@@ -1421,15 +1596,15 @@ function Assistant({
 						value={value}
 						onChange={(event) => onChange(event.target.value)}
 						placeholder={
-							data.ai.configured
-								? "Ask about your account…"
-								: "OpenAI API authorization is required"
+							aiMode ? "Ask about your account…" : "Message a live agent…"
 						}
-						disabled={!data.ai.configured || pending}
+						disabled={(aiMode && !data.ai.configured) || pending}
 					/>
 					<Button
 						type="submit"
-						disabled={!data.ai.configured || !value.trim() || pending}
+						disabled={
+							(aiMode && !data.ai.configured) || !value.trim() || pending
+						}
 					>
 						<Send />
 					</Button>
@@ -1564,7 +1739,7 @@ function AccessError() {
 		<div className="rounded-xl border border-[#7bff5a]/30 bg-[#7bff5a]/10 p-6">
 			<h1 className="text-xl">Portal access is not active</h1>
 			<p className="mt-2 text-sm text-white/55">
-				Ask your VAYU account manager to enable this email address.
+				Ask your account manager to enable this email address.
 			</p>
 		</div>
 	);

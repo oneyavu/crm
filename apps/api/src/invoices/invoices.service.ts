@@ -6,9 +6,15 @@ import {
 } from "@crm/db";
 import {
 	BadRequestException,
+	ForbiddenException,
 	Injectable,
 	NotFoundException,
 } from "@nestjs/common";
+import {
+	assignedCompanyIds,
+	assignedInvoiceWhere,
+	staffRole,
+} from "../authz/staff-scope";
 import { blankToNull, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -92,9 +98,13 @@ export class InvoicesService {
 		private readonly notifications: NotificationsService,
 	) {}
 
-	async list(input: InvoiceListInput) {
+	async list(input: InvoiceListInput, userId: string) {
+		const access = await staffRole(this.db, userId);
+		const companyIds = access.admin
+			? []
+			: await assignedCompanyIds(this.db, userId);
 		const term = input.q.trim();
-		const where: Prisma.InvoiceWhereInput = {
+		const filters: Prisma.InvoiceWhereInput = {
 			...(term
 				? {
 						OR: [
@@ -111,6 +121,9 @@ export class InvoicesService {
 				? { status: input.status as InvoiceStatus }
 				: {}),
 		};
+		const where: Prisma.InvoiceWhereInput = access.admin
+			? filters
+			: { AND: [filters, assignedInvoiceWhere(userId, companyIds)] };
 		const { skip, take } = paginate(input);
 		const [rows, total] = await Promise.all([
 			this.db.invoice.findMany({
@@ -147,9 +160,16 @@ export class InvoicesService {
 		};
 	}
 
-	async byId(id: string): Promise<InvoiceDetail> {
-		const row = await this.db.invoice.findUnique({
-			where: { id },
+	async byId(id: string, userId: string): Promise<InvoiceDetail> {
+		const access = await staffRole(this.db, userId);
+		const companyIds = access.admin
+			? []
+			: await assignedCompanyIds(this.db, userId);
+		const row = await this.db.invoice.findFirst({
+			where: {
+				id,
+				...(access.admin ? {} : assignedInvoiceWhere(userId, companyIds)),
+			},
 			include: INVOICE_DETAIL_INCLUDE,
 		});
 		if (!row) throw new NotFoundException(`No invoice with id ${id}.`);
@@ -157,6 +177,9 @@ export class InvoicesService {
 	}
 
 	async create(input: InvoiceCreateInput, userId: string) {
+		const access = await staffRole(this.db, userId);
+		if (!access.admin)
+			throw new ForbiddenException("Invoice creation requires approval.");
 		const issueDate = new Date(`${input.issueDate}T12:00:00.000Z`);
 		const dueDate = new Date(`${input.dueDate}T12:00:00.000Z`);
 		if (dueDate < issueDate) {
@@ -213,8 +236,8 @@ export class InvoicesService {
 		});
 	}
 
-	async send(id: string) {
-		const invoice = await this.byId(id);
+	async send(id: string, userId: string) {
+		const invoice = await this.byId(id, userId);
 		if (!invoice.recipientEmail) {
 			throw new BadRequestException("Add a recipient email before sending.");
 		}
@@ -233,7 +256,10 @@ export class InvoicesService {
 		return delivery;
 	}
 
-	async setStatus(id: string, status: InvoiceStatus) {
+	async setStatus(id: string, status: InvoiceStatus, userId: string) {
+		const access = await staffRole(this.db, userId);
+		if (!access.admin)
+			throw new ForbiddenException("Invoice status changes require approval.");
 		try {
 			const current = await this.db.invoice.findUnique({
 				where: { id },
@@ -262,7 +288,12 @@ export class InvoicesService {
 		}
 	}
 
-	async delete(id: string) {
+	async delete(id: string, userId: string) {
+		const access = await staffRole(this.db, userId);
+		if (!access.admin)
+			throw new ForbiddenException(
+				"Invoice deletion requires administrator access.",
+			);
 		try {
 			return await this.db.invoice.delete({
 				where: { id },

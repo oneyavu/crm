@@ -18,7 +18,7 @@ export function AuthShell({
 					<>
 						<Image
 							src="/brand/vayu-platform-engineering.webp"
-							alt="VAYU modular platform and operations environment"
+							alt="Modular platform and operations environment"
 							fill
 							priority
 							sizes="70vw"
@@ -40,7 +40,7 @@ export function AuthShell({
 				<div className="relative flex max-w-lg flex-col gap-8">
 					<div className="flex flex-col gap-4">
 						<p className="font-mono text-xs/4 text-[#8df267] uppercase">
-							{variant === "client" ? "VAYU CLIENT CONTROL" : "VAYU OPERATIONS"}
+							{variant === "client" ? "CLIENT CONTROL" : "OPERATIONS"}
 						</p>
 						<h1 className="max-w-[14ch] text-5xl/14 font-semibold text-balance">
 							{variant === "client"

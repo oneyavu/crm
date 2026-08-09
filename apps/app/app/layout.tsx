@@ -21,10 +21,10 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
 	title: {
-		default: "VAYU CRM",
-		template: "%s · VAYU CRM",
+		default: "V-OS",
+		template: "%s · V-OS",
 	},
-	description: "VAYU customer, project and revenue operations",
+	description: "V-OS business operations platform · MSP by VAYU LIMITED",
 	icons: {
 		icon: [
 			{ url: "/vayu-site-icon-512.png", type: "image/png", sizes: "512x512" },

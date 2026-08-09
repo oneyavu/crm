@@ -26,13 +26,16 @@ export class InvoicesRouter {
 	) {}
 
 	@Query({ input: invoiceListInput })
-	async list(@Input() input: z.infer<typeof invoiceListInput>) {
-		return this.invoices.list(input);
+	async list(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceListInput>,
+	) {
+		return this.invoices.list(input, ctx.user.id);
 	}
 
 	@Query({ input: invoiceIdInput })
-	async byId(@Input("id") id: string) {
-		return this.invoices.byId(id);
+	async byId(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.invoices.byId(id, ctx.user.id);
 	}
 
 	@Mutation({ input: invoiceCreateInput })
@@ -44,17 +47,20 @@ export class InvoicesRouter {
 	}
 
 	@Mutation({ input: invoiceIdInput })
-	async send(@Input("id") id: string) {
-		return this.invoices.send(id);
+	async send(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.invoices.send(id, ctx.user.id);
 	}
 
 	@Mutation({ input: invoiceStatusInput })
-	async setStatus(@Input() input: z.infer<typeof invoiceStatusInput>) {
-		return this.invoices.setStatus(input.id, input.status);
+	async setStatus(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof invoiceStatusInput>,
+	) {
+		return this.invoices.setStatus(input.id, input.status, ctx.user.id);
 	}
 
 	@Mutation({ input: invoiceIdInput })
-	async delete(@Input("id") id: string) {
-		return this.invoices.delete(id);
+	async delete(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.invoices.delete(id, ctx.user.id);
 	}
 }

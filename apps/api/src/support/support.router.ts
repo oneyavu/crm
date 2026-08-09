@@ -13,6 +13,7 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	saveWidgetInput,
 	supportConversationInput,
+	supportFormalizeInput,
 	supportReplyInput,
 	updateSupportConversationInput,
 } from "./support.contracts";
@@ -57,6 +58,14 @@ export class SupportRouter {
 		@Input() input: z.infer<typeof supportReplyInput>,
 	) {
 		return this.support.agentReply(input.id, input.message, ctx.user.id);
+	}
+
+	@Mutation({ input: supportFormalizeInput })
+	async createServiceRequest(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("id") id: string,
+	) {
+		return this.support.createServiceRequest(id, ctx.user.id);
 	}
 
 	@Query({ input: supportConversationInput })

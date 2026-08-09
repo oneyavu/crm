@@ -38,6 +38,10 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 	const workspaceUrl = useWorkspaceUrl();
 	const router = useRouter();
 	const [deleteOpen, setDeleteOpen] = useState(false);
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const canManageInvoices = Boolean(
+		workspace.data?.permissions.manageWorkspace,
+	);
 	const invoice = useQuery(trpc.invoices.byId.queryOptions({ id: invoiceId }));
 	const refresh = () =>
 		queryClient.invalidateQueries({
@@ -108,16 +112,20 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 						>
 							<Printer data-icon="inline-start" /> Print / Save PDF
 						</Button>
-						<Button variant="outline" onClick={() => setDeleteOpen(true)}>
-							<TrashCan data-icon="inline-start" /> Delete
-						</Button>
-						<Button
-							variant="outline"
-							onClick={() => paid.mutate({ id: invoiceId, status: "PAID" })}
-							disabled={data?.status === "PAID" || paid.isPending}
-						>
-							Mark paid
-						</Button>
+						{canManageInvoices ? (
+							<Button variant="outline" onClick={() => setDeleteOpen(true)}>
+								<TrashCan data-icon="inline-start" /> Delete
+							</Button>
+						) : null}
+						{canManageInvoices ? (
+							<Button
+								variant="outline"
+								onClick={() => paid.mutate({ id: invoiceId, status: "PAID" })}
+								disabled={data?.status === "PAID" || paid.isPending}
+							>
+								Mark paid
+							</Button>
+						) : null}
 						<Button
 							onClick={() => send.mutate({ id: invoiceId })}
 							disabled={!data?.recipientEmail || send.isPending}
@@ -127,27 +135,29 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 					</div>
 				</div>
 				{data ? <InvoiceDocument invoice={data} /> : null}
-				<AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-					<AlertDialogContent>
-						<AlertDialogHeader>
-							<AlertDialogTitle>Delete this invoice?</AlertDialogTitle>
-							<AlertDialogDescription>
-								{data?.number ?? "This invoice"} and its line items will be
-								permanently deleted.
-							</AlertDialogDescription>
-						</AlertDialogHeader>
-						<AlertDialogFooter>
-							<AlertDialogCancel>Cancel</AlertDialogCancel>
-							<AlertDialogAction
-								variant="destructive"
-								disabled={remove.isPending}
-								onClick={() => remove.mutate({ id: invoiceId })}
-							>
-								Delete invoice
-							</AlertDialogAction>
-						</AlertDialogFooter>
-					</AlertDialogContent>
-				</AlertDialog>
+				{canManageInvoices ? (
+					<AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Delete this invoice?</AlertDialogTitle>
+								<AlertDialogDescription>
+									{data?.number ?? "This invoice"} and its line items will be
+									permanently deleted.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction
+									variant="destructive"
+									disabled={remove.isPending}
+									onClick={() => remove.mutate({ id: invoiceId })}
+								>
+									Delete invoice
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				) : null}
 			</PageShellContent>
 		</PageShell>
 	);

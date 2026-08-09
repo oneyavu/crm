@@ -15,6 +15,7 @@ export const saveWidgetInput = z.object({
 });
 
 export const supportConversationInput = z.object({ id: z.string().min(1) });
+export const supportFormalizeInput = z.object({ id: z.string().min(1) });
 
 export const supportReplyInput = z.object({
 	id: z.string().min(1),

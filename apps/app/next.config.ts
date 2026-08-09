@@ -38,6 +38,8 @@ const nextConfig: NextConfig = {
 
 	env: {
 		NEXT_PUBLIC_API_URL: apiUrl,
+		NEXT_PUBLIC_CLIENT_PORTAL_URL:
+			process.env.CLIENT_PORTAL_URL ?? "https://onevayu.com/service-portal/",
 	},
 
 	transpilePackages: ["@crm/auth", "@crm/db", "@crm/telemetry", "@crm/ui"],

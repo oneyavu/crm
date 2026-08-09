@@ -265,7 +265,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentData }) {
 					<div>
 						<p className="font-medium">Authorized by VAYU Limited</p>
 						<p className="mt-1 text-[#666] text-xs">
-							Digitally issued from the VAYU CRM
+							Digitally issued from V-OS · MSP by VAYU LIMITED
 						</p>
 					</div>
 					<div className="flex items-center gap-2 text-[#171717]">

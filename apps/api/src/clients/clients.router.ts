@@ -25,12 +25,16 @@ export class ClientsRouter {
 		@Inject(ClientsService) private readonly clients: ClientsService,
 	) {}
 	@Query({ input: clientListInput }) list(
+		@Ctx() ctx: AuthedTrpcContext,
 		@Input() input: z.infer<typeof clientListInput>,
 	) {
-		return this.clients.list(input.q);
+		return this.clients.list(input.q, ctx.user.id);
 	}
-	@Query({ input: clientIdInput }) detail(@Input("id") id: string) {
-		return this.clients.detail(id);
+	@Query({ input: clientIdInput }) detail(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("id") id: string,
+	) {
+		return this.clients.detail(id, ctx.user.id);
 	}
 	@Mutation({ input: clientAccountInput }) createAccount(
 		@Ctx() ctx: AuthedTrpcContext,

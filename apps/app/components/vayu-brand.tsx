@@ -5,7 +5,7 @@ export function VayuMark({ className }: { className?: string }) {
 	return (
 		<Image
 			src="/vayu-site-icon-512.png"
-			alt="VAYU"
+			alt="Company logo"
 			width={512}
 			height={512}
 			className={cn("rounded-[22%]", className)}
@@ -15,15 +15,5 @@ export function VayuMark({ className }: { className?: string }) {
 }
 
 export function VayuWordmark({ className }: { className?: string }) {
-	return (
-		<span
-			className={cn(
-				"inline-flex items-center gap-2 font-semibold tracking-[0.18em]",
-				className,
-			)}
-		>
-			<VayuMark className="size-6" />
-			<span>VAYU</span>
-		</span>
-	);
+	return <VayuMark className={cn("size-8", className)} />;
 }

@@ -89,7 +89,12 @@ const ITEMS: RailItem[] = [
 		adminOnly: true,
 	},
 	{ title: "Widget Studio", href: "/support", icon: Chat, match: "prefix" },
-	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
+	{
+		title: "Service Portfolio",
+		href: "/catalog",
+		icon: Catalog,
+		match: "prefix",
+	},
 	{
 		title: "Settings",
 		href: "/settings",
@@ -298,6 +303,11 @@ export function AppIconRail() {
 						onPrefetch={() => prefetchSection(item.section)}
 					/>
 				))}
+				<div className="mt-auto border-t px-2 pt-3 text-[9px] leading-4 tracking-[0.1em] text-muted-foreground uppercase">
+					V-OS
+					<br />
+					MSP by VAYU LIMITED
+				</div>
 			</nav>
 
 			<Sheet open={open} onOpenChange={setOpen}>

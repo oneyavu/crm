@@ -93,7 +93,7 @@ export function PublicSupportWidget({
 						<div>
 							<p className="text-sm font-medium">{config.name}</p>
 							<p className="text-[10px] text-white/40">
-								{config.aiEnabled ? "GPT-5.5" : "VAYU Support"}
+								{config.aiEnabled ? "AI assistant" : "Live support"}
 								{config.liveSupportEnabled ? " · Live support" : ""}
 							</p>
 						</div>
@@ -142,7 +142,7 @@ export function PublicSupportWidget({
 							</div>
 						) : null}
 						{loading ? (
-							<p className="text-xs text-white/35">VAYU is responding…</p>
+							<p className="text-xs text-white/35">Responding…</p>
 						) : null}
 						{error ? <p className="text-xs text-[#ff6b6b]">{error}</p> : null}
 					</div>
@@ -170,7 +170,7 @@ export function PublicSupportWidget({
 						</button>
 					</form>
 					<p className="pb-2 text-center text-[9px] text-white/25">
-						Powered by VAYU AI
+						MSP by VAYU LIMITED
 					</p>
 				</section>
 			) : (

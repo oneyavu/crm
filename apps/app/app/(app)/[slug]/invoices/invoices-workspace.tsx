@@ -23,6 +23,10 @@ export function InvoicesWorkspace() {
 	const [catalogItemId, setCatalogItemId] = useState("");
 	const [description, setDescription] = useState("");
 	const [amount, setAmount] = useState("");
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
+	const canManageInvoices = Boolean(
+		workspace.data?.permissions.manageWorkspace,
+	);
 	const invoices = useQuery(
 		trpc.invoices.list.queryOptions({
 			q: "",
@@ -57,12 +61,14 @@ export function InvoicesWorkspace() {
 
 	return (
 		<div className="flex flex-col gap-5">
-			<div className="flex justify-end">
-				<Button onClick={() => setOpen((value) => !value)}>
-					<Add data-icon="inline-start" /> New invoice
-				</Button>
-			</div>
-			{open ? (
+			{canManageInvoices ? (
+				<div className="flex justify-end">
+					<Button onClick={() => setOpen((value) => !value)}>
+						<Add data-icon="inline-start" /> New invoice
+					</Button>
+				</div>
+			) : null}
+			{open && canManageInvoices ? (
 				<CardContent>
 					<form
 						className="grid gap-4 md:grid-cols-2"
@@ -117,7 +123,7 @@ export function InvoicesWorkspace() {
 							/>
 						</label>
 						<label className="grid gap-1 text-sm">
-							VAYU catalog item
+							Service Portfolio item
 							<select
 								className="h-9 rounded-md border bg-background px-3"
 								value={catalogItemId}

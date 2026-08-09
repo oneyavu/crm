@@ -29,18 +29,21 @@ export class ProjectsRouter {
 	) {}
 
 	@Query({ input: projectListInput })
-	async list(@Input() input: z.infer<typeof projectListInput>) {
-		return this.projects.list(input);
+	async list(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectListInput>,
+	) {
+		return this.projects.list(input, ctx.user.id);
 	}
 
 	@Query({ input: projectIdInput })
-	async byId(@Input("id") id: string) {
-		return this.projects.byId(id);
+	async byId(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.projects.byId(id, ctx.user.id);
 	}
 
 	@Query()
-	async options() {
-		return this.projects.options();
+	async options(@Ctx() ctx: AuthedTrpcContext) {
+		return this.projects.options(ctx.user.id);
 	}
 
 	@Mutation({ input: projectCreateInput })
@@ -60,8 +63,8 @@ export class ProjectsRouter {
 	}
 
 	@Mutation({ input: projectIdInput })
-	async delete(@Input("id") id: string) {
-		return this.projects.delete(id);
+	async delete(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.projects.delete(id, ctx.user.id);
 	}
 
 	@Mutation({ input: projectTaskCreateInput })
@@ -81,7 +84,7 @@ export class ProjectsRouter {
 	}
 
 	@Mutation({ input: projectTaskIdInput })
-	async deleteTask(@Input("id") id: string) {
-		return this.projects.deleteTask(id);
+	async deleteTask(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.projects.deleteTask(id, ctx.user.id);
 	}
 }

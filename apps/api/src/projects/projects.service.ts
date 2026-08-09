@@ -6,7 +6,13 @@ import {
 	ProjectStatus,
 	ProjectTaskStatus,
 } from "@crm/db";
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+	ForbiddenException,
+	Injectable,
+	Logger,
+	NotFoundException,
+} from "@nestjs/common";
+import { assignedProjectWhere, staffRole } from "../authz/staff-scope";
 import { blankToNull, decimalFromCents, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import { NotificationsService } from "../notifications/notifications.service";
@@ -47,10 +53,14 @@ export class ProjectsService {
 		private readonly notifications: NotificationsService,
 	) {}
 
-	async list(input: ProjectListInput) {
-		const where = this.where(input);
+	async list(input: ProjectListInput, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		const scope = access.admin ? {} : assignedProjectWhere(actorId);
+		const where: Prisma.ProjectWhereInput = { AND: [this.where(input), scope] };
 		const { skip, take } = paginate(input);
-		const baseWhere = this.search(input.q);
+		const baseWhere: Prisma.ProjectWhereInput = {
+			AND: [this.search(input.q), scope],
+		};
 
 		const [rows, total, statuses, owners] = await Promise.all([
 			this.db.project.findMany({
@@ -94,7 +104,7 @@ export class ProjectsService {
 				name: row.name,
 				status: row.status,
 				dueDate: row.dueDate?.toISOString() ?? null,
-				budgetCents: toCents(row.budget),
+				budgetCents: access.admin ? toCents(row.budget) : null,
 				currency: row.currency,
 				createdAt: row.createdAt.toISOString(),
 				company: row.company,
@@ -110,9 +120,13 @@ export class ProjectsService {
 		};
 	}
 
-	async byId(id: string) {
-		const project = await this.db.project.findUnique({
-			where: { id },
+	async byId(id: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		const project = await this.db.project.findFirst({
+			where: {
+				id,
+				...(access.admin ? {} : assignedProjectWhere(actorId)),
+			},
 			select: {
 				id: true,
 				name: true,
@@ -156,7 +170,7 @@ export class ProjectsService {
 		return {
 			...project,
 			budget: undefined,
-			budgetCents: toCents(project.budget),
+			budgetCents: access.admin ? toCents(project.budget) : null,
 			startDate: project.startDate?.toISOString() ?? null,
 			dueDate: project.dueDate?.toISOString() ?? null,
 			createdAt: project.createdAt.toISOString(),
@@ -170,9 +184,13 @@ export class ProjectsService {
 		};
 	}
 
-	async options() {
+	async options(actorId: string) {
+		const access = await staffRole(this.db, actorId);
 		return this.db.project.findMany({
-			where: { status: { not: ProjectStatus.CANCELLED } },
+			where: {
+				status: { not: ProjectStatus.CANCELLED },
+				...(access.admin ? {} : assignedProjectWhere(actorId)),
+			},
 			select: { id: true, name: true, companyId: true },
 			orderBy: { name: "asc" },
 			take: 100,
@@ -180,6 +198,9 @@ export class ProjectsService {
 	}
 
 	async create(input: ProjectCreateInput, actingUserId: string) {
+		const access = await staffRole(this.db, actingUserId);
+		if (!access.admin)
+			throw new ForbiddenException("Project creation requires approval.");
 		const project = await this.db.project.create({
 			data: {
 				name: input.name.trim(),
@@ -212,6 +233,23 @@ export class ProjectsService {
 	}
 
 	async update(input: ProjectUpdateInput, actingUserId: string) {
+		const access = await staffRole(this.db, actingUserId);
+		if (!access.admin) {
+			const allowed = await this.db.project.count({
+				where: { id: input.id, ...assignedProjectWhere(actingUserId) },
+			});
+			if (!allowed)
+				throw new ForbiddenException("This project is not assigned to you.");
+			if (
+				input.budgetCents !== undefined ||
+				input.currency !== undefined ||
+				input.companyId !== undefined ||
+				input.ownerId !== undefined
+			)
+				throw new ForbiddenException(
+					"Financial, client and ownership changes require approval.",
+				);
+		}
 		const current = await this.db.project.findUnique({
 			where: { id: input.id },
 			select: { ownerId: true },
@@ -273,7 +311,12 @@ export class ProjectsService {
 		return project;
 	}
 
-	async delete(id: string) {
+	async delete(id: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin)
+			throw new ForbiddenException(
+				"Project deletion requires administrator access.",
+			);
 		try {
 			return await this.db.project.delete({
 				where: { id },
@@ -291,6 +334,14 @@ export class ProjectsService {
 	}
 
 	async createTask(input: ProjectTaskCreateInput, actingUserId: string) {
+		const access = await staffRole(this.db, actingUserId);
+		if (
+			!access.admin &&
+			!(await this.db.project.count({
+				where: { id: input.projectId, ...assignedProjectWhere(actingUserId) },
+			}))
+		)
+			throw new ForbiddenException("This project is not assigned to you.");
 		const task = await this.db.projectTask.create({
 			data: {
 				projectId: input.projectId,
@@ -330,6 +381,19 @@ export class ProjectsService {
 	}
 
 	async updateTask(input: ProjectTaskUpdateInput, actingUserId: string) {
+		const access = await staffRole(this.db, actingUserId);
+		if (
+			!access.admin &&
+			!(await this.db.projectTask.count({
+				where: {
+					id: input.id,
+					project: assignedProjectWhere(actingUserId),
+				},
+			}))
+		)
+			throw new ForbiddenException(
+				"This task is not assigned to your project.",
+			);
 		const task = await this.db.projectTask.update({
 			where: { id: input.id },
 			data: {
@@ -377,7 +441,12 @@ export class ProjectsService {
 		return { id: task.id, projectId: task.projectId, status: task.status };
 	}
 
-	async deleteTask(id: string) {
+	async deleteTask(id: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin)
+			throw new ForbiddenException(
+				"Task deletion requires administrator access.",
+			);
 		try {
 			return await this.db.projectTask.delete({
 				where: { id },

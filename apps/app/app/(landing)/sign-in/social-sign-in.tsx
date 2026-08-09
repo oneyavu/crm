@@ -34,14 +34,26 @@ export function SocialSignIn({
 		setPending(true);
 
 		const origin = window.location.origin;
+		const embedded = window.self !== window.top;
+		const clientPortal = callbackPath.startsWith("/client");
+		const publicPortalURL =
+			process.env.NEXT_PUBLIC_CLIENT_PORTAL_URL ??
+			"https://onevayu.com/service-portal/";
+		const callbackURL =
+			clientPortal && embedded ? publicPortalURL : `${origin}${callbackPath}`;
 
-		const { error } = await signIn.social({
+		const { data, error } = await signIn.social({
 			provider,
-			callbackURL: `${origin}${callbackPath}`,
-			errorCallbackURL: `${origin}/sign-in`,
+			callbackURL,
+			errorCallbackURL:
+				clientPortal && embedded ? publicPortalURL : `${origin}/sign-in`,
+			disableRedirect: embedded,
 		});
 
 		if (error) fail(error.message);
+		else if (embedded && data?.url && window.top) {
+			window.top.location.href = data.url;
+		}
 	}
 
 	return (

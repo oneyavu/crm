@@ -30,12 +30,12 @@ import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
 import { entityIdInput, expenseCategoryInput, messageTemplateInput, financialAccountInput, staffProfileInput, compensationInput, metricInput, pricingInput, documentInput, dealAnalysisInput } from "../operations/operations.contracts";
 import { paperclipAgentInput, paperclipInstructionInput, paperclipApprovalInput, paperclipWorkflowInput } from "../paperclip/paperclip.contracts";
-import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
+import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, portalLiveChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordUpdateInput, recordIdInput } from "../records/records.contracts";
 import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
-import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportConversationInput } from "../support/support.contracts";
+import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportFormalizeInput, supportConversationInput } from "../support/support.contracts";
 import { memberListInput, updateWorkspaceInput, setMemberRoleInput, inviteMemberInput, invitationInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
@@ -538,6 +538,9 @@ const appRouter = t.router({
     aiChat: publicProcedure
       .input(portalAiChatInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["aiChat"]>>),
+    liveChat: publicProcedure
+      .input(portalLiveChatInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["liveChat"]>>),
     submitInvoicePayment: publicProcedure
       .input(submitInvoicePaymentInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["submitInvoicePayment"]>>)
@@ -640,6 +643,9 @@ const appRouter = t.router({
     reply: publicProcedure
       .input(supportReplyInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["reply"]>>),
+    createServiceRequest: publicProcedure
+      .input(supportFormalizeInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["createServiceRequest"]>>),
     conversation: publicProcedure
       .input(supportConversationInput)
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SupportRouter["conversation"]>>)

@@ -94,6 +94,19 @@ export function WidgetStudio() {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const createServiceRequest = useMutation(
+		trpc.support.createServiceRequest.mutationOptions({
+			onSuccess: async (result) => {
+				await refresh();
+				toast.success(
+					result.created
+						? `${result.reference} created and submitted.`
+						: `${result.reference} is already linked.`,
+				);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 
 	const conversations = inbox.data ?? [];
 	const selected =
@@ -392,6 +405,18 @@ export function WidgetStudio() {
 										</p>
 									</div>
 									<div className="ml-auto flex gap-2">
+										{selected.source === "PORTAL" &&
+										!selected.subject?.startsWith("SERVICE_REQUEST:") ? (
+											<Button
+												size="sm"
+												onClick={() =>
+													createServiceRequest.mutate({ id: selected.id })
+												}
+												disabled={createServiceRequest.isPending}
+											>
+												Create service request
+											</Button>
+										) : null}
 										{selected.status !== "LIVE_AGENT" ? (
 											<Button
 												size="sm"

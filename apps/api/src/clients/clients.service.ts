@@ -1,4 +1,3 @@
-import { isWorkspaceAdmin } from "@crm/auth";
 import { type Db, RecordSource } from "@crm/db";
 import {
 	ConflictException,
@@ -7,6 +6,7 @@ import {
 	NotFoundException,
 } from "@nestjs/common";
 import type { z } from "zod";
+import { assignedCompanyIds, staffRole } from "../authz/staff-scope";
 import { toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import { PortalService } from "../portal/portal.service";
@@ -22,7 +22,10 @@ export class ClientsService {
 		private readonly portal: PortalService,
 	) {}
 
-	list(q: string): Promise<
+	async list(
+		q: string,
+		actorId: string,
+	): Promise<
 		Array<{
 			id: string;
 			name: string;
@@ -48,15 +51,22 @@ export class ClientsService {
 		}>
 	> {
 		const term = q.trim();
+		const access = await staffRole(this.db, actorId);
+		const companyIds = access.admin
+			? null
+			: await assignedCompanyIds(this.db, actorId);
 		return this.db.company.findMany({
-			where: term
-				? {
-						OR: [
-							{ name: { contains: term, mode: "insensitive" } },
-							{ domain: { contains: term, mode: "insensitive" } },
-						],
-					}
-				: {},
+			where: {
+				...(companyIds ? { id: { in: companyIds } } : {}),
+				...(term
+					? {
+							OR: [
+								{ name: { contains: term, mode: "insensitive" } },
+								{ domain: { contains: term, mode: "insensitive" } },
+							],
+						}
+					: {}),
+			},
 			orderBy: { name: "asc" },
 			take: 250,
 			select: {
@@ -84,7 +94,13 @@ export class ClientsService {
 		});
 	}
 
-	async detail(id: string) {
+	async detail(id: string, actorId: string) {
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin) {
+			const companyIds = await assignedCompanyIds(this.db, actorId);
+			if (!companyIds.includes(id))
+				throw new ForbiddenException("This client is not assigned to you.");
+		}
 		const company = await this.db.company.findUnique({
 			where: { id },
 			include: {
@@ -184,7 +200,7 @@ export class ClientsService {
 		input: z.infer<typeof clientAccountInput>,
 		actorId: string,
 	) {
-		await this.assertAdmin(actorId);
+		const access = await staffRole(this.db, actorId);
 		const domain = normalizeDomain(input.domain);
 		if (!domain)
 			throw new ForbiddenException("Enter a valid client company domain.");
@@ -229,25 +245,43 @@ export class ClientsService {
 			});
 			return { company, contact };
 		});
-		const invitation = input.sendInvite
-			? await this.portal.grant(
-					{
-						companyId: created.company.id,
-						contactId: created.contact.id,
-						email: input.contactEmail,
-					},
+		const invitation =
+			input.sendInvite && access.admin
+				? await this.portal.grant(
+						{
+							companyId: created.company.id,
+							contactId: created.contact.id,
+							email: input.contactEmail,
+						},
+						actorId,
+					)
+				: null;
+		if (input.sendInvite && !access.admin) {
+			await this.db.auditEntry.create({
+				data: {
+					entityType: "Company",
+					entityId: created.company.id,
+					action: "CLIENT_ACTIVATION_PENDING_APPROVAL",
 					actorId,
-				)
-			: null;
+					summary: `Client activation requested for ${created.company.name}`,
+				},
+			});
+		}
 		return {
 			companyId: created.company.id,
 			contactId: created.contact.id,
 			invitation,
+			approvalRequired: input.sendInvite && !access.admin,
 		};
 	}
 
 	async addContact(input: z.infer<typeof clientContactInput>, actorId: string) {
-		await this.assertAdmin(actorId);
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin) {
+			const companyIds = await assignedCompanyIds(this.db, actorId);
+			if (!companyIds.includes(input.companyId))
+				throw new ForbiddenException("This client is not assigned to you.");
+		}
 		const company = await this.db.company.findUnique({
 			where: { id: input.companyId },
 			select: { id: true, name: true, domain: true },
@@ -280,13 +314,33 @@ export class ClientsService {
 				after: { companyId: company.id, primary: input.primary },
 			},
 		});
-		const invitation = input.sendInvite
-			? await this.portal.grant(
-					{ companyId: company.id, contactId: contact.id, email: input.email },
+		const invitation =
+			input.sendInvite && access.admin
+				? await this.portal.grant(
+						{
+							companyId: company.id,
+							contactId: contact.id,
+							email: input.email,
+						},
+						actorId,
+					)
+				: null;
+		if (input.sendInvite && !access.admin) {
+			await this.db.auditEntry.create({
+				data: {
+					entityType: "Contact",
+					entityId: contact.id,
+					action: "CLIENT_ACCESS_PENDING_APPROVAL",
 					actorId,
-				)
-			: null;
-		return { contact, invitation };
+					summary: `Portal access requested for ${contact.email}`,
+				},
+			});
+		}
+		return {
+			contact,
+			invitation,
+			approvalRequired: input.sendInvite && !access.admin,
+		};
 	}
 
 	private validateClientEmail(email: string, companyDomain: string | null) {
@@ -298,16 +352,6 @@ export class ClientsService {
 		)
 			throw new ForbiddenException(
 				`Use a Gmail address or an address on ${allowed || "the client company domain"}.`,
-			);
-	}
-	private async assertAdmin(userId: string) {
-		const member = await this.db.member.findFirst({
-			where: { userId },
-			select: { role: true },
-		});
-		if (!isWorkspaceAdmin(member?.role as never))
-			throw new ForbiddenException(
-				"Workspace administrator access is required.",
 			);
 	}
 }

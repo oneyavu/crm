@@ -1,7 +1,7 @@
 import { Skeleton } from "@crm/ui/components/skeleton";
-import { Spinner } from "@crm/ui/components/spinner";
 import { cn } from "@crm/ui/lib/utils";
 import type * as React from "react";
+import { VayuLoader } from "@/components/vayu-loader";
 import { PageTransition } from "./page-transition";
 
 function PageShell({ className, ...props }: React.ComponentProps<"div">) {
@@ -125,7 +125,7 @@ function PageShellContent({
 function PageShellLoading() {
 	return (
 		<div aria-busy="true" className="flex justify-center py-12">
-			<Spinner size="lg" />
+			<VayuLoader />
 		</div>
 	);
 }

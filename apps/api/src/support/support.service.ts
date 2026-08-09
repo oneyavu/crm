@@ -80,7 +80,7 @@ export class SupportService {
 	}
 
 	async conversations(actorId: string) {
-		await this.assertAdmin(actorId);
+		await this.assertStaff(actorId);
 		return this.db.supportConversation.findMany({
 			orderBy: { lastMessageAt: "desc" },
 			take: 100,
@@ -96,7 +96,7 @@ export class SupportService {
 		status: SupportConversationStatus,
 		actorId: string,
 	) {
-		await this.assertAdmin(actorId);
+		await this.assertStaff(actorId);
 		return this.db.supportConversation.update({
 			where: { id },
 			data: {
@@ -110,7 +110,7 @@ export class SupportService {
 	}
 
 	async agentReply(id: string, message: string, actorId: string) {
-		await this.assertAdmin(actorId);
+		await this.assertStaff(actorId);
 		return this.db.$transaction(async (tx) => {
 			const conversation = await tx.supportConversation.findUnique({
 				where: { id },
@@ -134,6 +134,85 @@ export class SupportService {
 			});
 			return created;
 		});
+	}
+
+	async createServiceRequest(id: string, actorId: string) {
+		await this.assertStaff(actorId);
+		const conversation = await this.db.supportConversation.findFirst({
+			where: { id, source: SupportConversationSource.PORTAL },
+			include: {
+				messages: {
+					where: { role: SupportMessageRole.VISITOR },
+					orderBy: { createdAt: "asc" },
+				},
+			},
+		});
+		if (!conversation?.companyId || !conversation.visitorEmail)
+			throw new NotFoundException("Client portal conversation not found.");
+		const companyId = conversation.companyId;
+		if (conversation.subject?.startsWith("SERVICE_REQUEST:")) {
+			return {
+				reference: conversation.subject.slice("SERVICE_REQUEST:".length),
+				created: false,
+			};
+		}
+		const access = await this.db.clientPortalAccess.findFirst({
+			where: {
+				companyId: conversation.companyId,
+				email: conversation.visitorEmail,
+				active: true,
+			},
+			select: { id: true },
+		});
+		if (!access) throw new NotFoundException("Active client access not found.");
+		const description =
+			conversation.messages.at(-1)?.content ??
+			"Service requested in live chat.";
+		const requestedName =
+			/I would like to request\s+(.+?)(?:\s+\([^)]+\))?\./i.exec(
+				description,
+			)?.[1] ?? "Client service request";
+		const reference = `SR-${new Date().getFullYear()}-${randomUUID().slice(0, 6).toUpperCase()}`;
+		const created = await this.db.$transaction(async (tx) => {
+			const request = await tx.serviceRequest.create({
+				data: {
+					reference,
+					title: requestedName,
+					description,
+					category: "CHANGE_REQUEST",
+					priority: "MEDIUM",
+					companyId,
+					requestedByAccessId: access.id,
+					messages: {
+						create: {
+							source: "STAFF",
+							body: `Created from live chat by the assigned agent.\n\n${description}`,
+							authorUserId: actorId,
+						},
+					},
+				},
+				select: { id: true, reference: true, title: true },
+			});
+			await tx.supportConversation.update({
+				where: { id },
+				data: {
+					subject: `SERVICE_REQUEST:${reference}`,
+					status: "LIVE_AGENT",
+					assignedToUserId: actorId,
+					lastMessageAt: new Date(),
+				},
+			});
+			await tx.supportMessage.create({
+				data: {
+					conversationId: id,
+					role: SupportMessageRole.AGENT,
+					content: `Service request ${reference} has been created and submitted to the delivery team.`,
+					authorUserId: actorId,
+				},
+			});
+			return request;
+		});
+		return { ...created, created: true };
 	}
 
 	async publicWidget(publicKey: string, host?: string) {
@@ -279,6 +358,15 @@ export class SupportService {
 				"Workspace administrator access is required.",
 			);
 		}
+	}
+
+	private async assertStaff(userId: string) {
+		const member = await this.db.member.findFirst({
+			where: { userId },
+			select: { id: true },
+		});
+		if (!member)
+			throw new ForbiddenException("Staff workspace access is required.");
 	}
 }
 

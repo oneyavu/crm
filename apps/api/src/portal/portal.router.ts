@@ -17,6 +17,7 @@ import {
 	portalCompanyInput,
 	portalGrantInput,
 	portalInviteInput,
+	portalLiveChatInput,
 	serviceRequestReplyInput,
 	serviceRequestStatusInput,
 	submitInvoicePaymentInput,
@@ -92,6 +93,14 @@ export class PortalRouter {
 		@Input() input: z.infer<typeof portalAiChatInput>,
 	) {
 		return this.portal.aiChat(input, ctx.user);
+	}
+
+	@Mutation({ input: portalLiveChatInput })
+	async liveChat(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof portalLiveChatInput>,
+	) {
+		return this.portal.liveChat(input, ctx.user);
 	}
 
 	@Mutation({ input: submitInvoicePaymentInput })

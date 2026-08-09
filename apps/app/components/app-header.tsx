@@ -17,7 +17,6 @@ import {
 } from "@crm/ui/components/dropdown-menu";
 import { Separator } from "@crm/ui/components/separator";
 import { Skeleton } from "@crm/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -25,18 +24,13 @@ import { useMobileNav } from "@/components/mobile-nav";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { VayuMark } from "@/components/vayu-brand";
 import { signOutAndRedirect } from "@/lib/sign-out";
-import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
-import { workspaceLabel } from "@/lib/workspace-label";
 
 type User = { name: string; email: string; image: string | null };
 
 export function AppHeader({ user }: { user: User }) {
 	const { setOpen: setMobileNavOpen } = useMobileNav();
-	const trpc = useTRPC();
 	const workspaceUrl = useWorkspaceUrl();
-	const workspace = useQuery(trpc.workspace.get.queryOptions());
-	const label = workspaceLabel(workspace.data?.name);
 
 	return (
 		<header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 [view-transition-name:app-header]">
@@ -58,7 +52,12 @@ export function AppHeader({ user }: { user: User }) {
 					<VayuMark className="size-7" />
 				</Link>
 				<Separator orientation="vertical" className="mx-1 h-5 bg-transparent" />
-				<span className="min-w-0 truncate font-medium text-sm">{label}</span>
+				<div className="min-w-0">
+					<p className="truncate font-medium text-sm">V-OS</p>
+					<p className="hidden text-[9px] tracking-[0.12em] text-muted-foreground uppercase sm:block">
+						MSP by VAYU LIMITED
+					</p>
+				</div>
 			</div>
 
 			<div className="ml-auto flex shrink-0 items-center gap-1.5">

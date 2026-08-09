@@ -51,14 +51,30 @@ const appUrls = (optional("APP_URL") ?? DEFAULT_APP_URL)
 	.filter(Boolean);
 
 const appUrl = appUrls[0] ?? DEFAULT_APP_URL;
+const clientPortalUrl =
+	optional("CLIENT_PORTAL_URL") ??
+	(process.env.NODE_ENV === "production"
+		? "https://onevayu.com/service-portal/"
+		: undefined);
+const clientPortalOrigin = clientPortalUrl
+	? new URL(clientPortalUrl).origin
+	: undefined;
 
 export const env = {
 	apiUrl,
 	appUrl,
 	google: googleCredentials(),
 	microsoft: microsoftCredentials(),
-	cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
-	trustedOrigins: [...new Set([...appUrls, apiUrl])],
+	cookieDomain:
+		optional("AUTH_COOKIE_DOMAIN") ??
+		(process.env.NODE_ENV === "production" ? ".onevayu.com" : undefined),
+	trustedOrigins: [
+		...new Set(
+			[...appUrls, apiUrl, clientPortalOrigin].filter(
+				(value): value is string => Boolean(value),
+			),
+		),
+	],
 	isProduction: process.env.NODE_ENV === "production",
 } as const;
 

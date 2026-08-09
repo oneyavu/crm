@@ -41,6 +41,11 @@ export const portalAiChatInput = z.object({
 	message: z.string().trim().min(1).max(4_000),
 });
 
+export const portalLiveChatInput = z.object({
+	conversationId: z.string().min(1).nullable().optional(),
+	message: z.string().trim().min(1).max(4_000),
+});
+
 export const submitInvoicePaymentInput = z
 	.object({
 		invoiceId: z.string().min(1),
