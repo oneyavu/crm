@@ -39,18 +39,22 @@ export function SocialSignIn({
 		const publicPortalURL =
 			process.env.NEXT_PUBLIC_CLIENT_PORTAL_URL ??
 			"https://onevayu.com/service-portal/";
-		const callbackURL =
-			clientPortal && embedded ? publicPortalURL : `${origin}${callbackPath}`;
+		const publicStaffURL =
+			process.env.NEXT_PUBLIC_STAFF_PORTAL_URL ??
+			"https://onevayu.com/staff-login/";
+		const embeddedPortalURL = clientPortal ? publicPortalURL : publicStaffURL;
+		const callbackURL = embedded
+			? embeddedPortalURL
+			: `${origin}${callbackPath}`;
 		const staffLoginPath =
 			window.location.pathname === "/staff-login" ? "/staff-login" : "/sign-in";
 
 		const { data, error } = await signIn.social({
 			provider,
 			callbackURL,
-			errorCallbackURL:
-				clientPortal && embedded
-					? publicPortalURL
-					: `${origin}${staffLoginPath}`,
+			errorCallbackURL: embedded
+				? embeddedPortalURL
+				: `${origin}${staffLoginPath}`,
 			disableRedirect: embedded,
 		});
 
