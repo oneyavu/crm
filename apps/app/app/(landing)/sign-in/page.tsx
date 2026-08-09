@@ -1,6 +1,7 @@
 import type { MailboxProviderId } from "@crm/auth/scopes";
 import type { Metadata } from "next";
 import { redirect, unstable_rethrow } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
@@ -34,6 +35,7 @@ async function signInOptions(): Promise<SignInOptions | null> {
 export default async function SignInPage({
 	searchParams,
 }: PageProps<"/sign-in">) {
+	await connection();
 	const { callbackURL } = await searchParams;
 	const clientPortal =
 		typeof callbackURL === "string" && callbackURL.startsWith("/client");
