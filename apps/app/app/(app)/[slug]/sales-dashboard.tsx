@@ -126,20 +126,20 @@ export function SalesDashboard({ summary }: { summary: Summary }) {
 				/>
 			</StatGroup>
 
-			<section className="insight-panel grid gap-4 rounded-lg p-5 md:grid-cols-[1fr_auto] md:items-end md:p-6">
+			<section className="grid gap-4 rounded-2xl border border-white/10 bg-[linear-gradient(145deg,#191b1b,#0d0f0f)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.035)] md:grid-cols-[1fr_auto] md:items-end md:p-6">
 				<div className="max-w-xl">
-					<h2 className="text-lg font-medium tracking-tight">
+					<h2 className="bg-[linear-gradient(90deg,#77f257,#46d7a4)] bg-clip-text text-lg font-semibold tracking-tight text-transparent">
 						Pipeline insight
 					</h2>
-					<p className="mt-2 text-sm/relaxed text-white/80">
+					<p className="mt-2 text-sm/relaxed text-white/60">
 						{closingThisMonthTotal.count === 0
 							? "No open deals are scheduled to close this month. Review expected close dates to keep forecasting useful."
 							: `${formatCount(closingThisMonthTotal.count, "deal")} worth ${money(closingThisMonthTotal.valueCents)} are scheduled to close this month.`}
 					</p>
 				</div>
 				<div className="text-left md:text-right">
-					<p className="text-white/70 text-xs">Open pipeline</p>
-					<p className="mt-1 text-3xl tracking-[-0.03em] tabular-nums">
+					<p className="text-white/45 text-xs">Open pipeline</p>
+					<p className="mt-1 bg-[linear-gradient(90deg,#77f257,#46d7a4)] bg-clip-text text-3xl tracking-[-0.03em] text-transparent tabular-nums">
 						{money(pipeline.totalCents)}
 					</p>
 				</div>

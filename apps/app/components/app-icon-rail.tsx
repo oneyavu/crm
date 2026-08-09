@@ -57,7 +57,12 @@ const ITEMS: RailItem[] = [
 		match: "prefix",
 		related: ["/agents"],
 	},
-	{ title: "Companies", href: "/companies", icon: Building, match: "prefix" },
+	{
+		title: "Client Management",
+		href: "/clients",
+		icon: Building,
+		match: "prefix",
+	},
 	{
 		title: "Contacts",
 		href: "/contacts",
@@ -76,6 +81,13 @@ const ITEMS: RailItem[] = [
 		adminOnly: true,
 	},
 	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
+	{
+		title: "Business Operations",
+		href: "/operations",
+		icon: Dashboard,
+		match: "prefix",
+		adminOnly: true,
+	},
 	{ title: "Widget Studio", href: "/support", icon: Chat, match: "prefix" },
 	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
 	{

@@ -29,5 +29,16 @@ export const recordCreateInput = z.object({
 	dueAt: z.string().nullable().optional(),
 	companyId: z.string().nullable().optional(),
 	projectId: z.string().nullable().optional(),
+	includedInFinancials: z.boolean().default(true),
+	billable: z.boolean().default(false),
+	clientVisible: z.boolean().default(false),
+	expenseScope: z.enum(["COMPANY", "CLIENT", "PROJECT"]).nullable().optional(),
+	categoryId: z.string().nullable().optional(),
+	financialAccountId: z.string().nullable().optional(),
 });
 export type RecordCreateInput = z.infer<typeof recordCreateInput>;
+
+export const recordUpdateInput = recordCreateInput.extend({
+	id: z.string().min(1),
+});
+export type RecordUpdateInput = z.infer<typeof recordUpdateInput>;

@@ -110,7 +110,7 @@ export function WidgetStudio() {
 		(conversation) => conversation.status === "AI_ACTIVE",
 	).length;
 	const embedCode = widget.data?.publicKey
-		? `<script async src="https://asina.onevayu.com/widget.js" data-vayu-widget="${widget.data.publicKey}" data-position="${draft?.position === "BOTTOM_LEFT" ? "left" : "right"}"></script>`
+		? `<script async src="https://asina.onevayu.com/widget.js" data-vayu-widget="${widget.data.publicKey}" data-position="left" data-vapi-public-key="2ecd9a64-72b1-408e-a895-ff2b19655746" data-vapi-assistant-id="36382f71-3794-4f84-a957-3dd8248154ee"></script>`
 		: "Save the widget once to generate embed code.";
 
 	if (widget.isLoading || !draft)
@@ -150,6 +150,12 @@ export function WidgetStudio() {
 					icon={<VayuMark className="size-6" />}
 					label="GPT-5.5"
 					value="Direct OpenAI"
+					good
+				/>
+				<StudioMetric
+					icon={<Headphones />}
+					label="Vapi voice"
+					value="Talk With Us"
 					good
 				/>
 				<StudioMetric

@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import {
 	BusinessRecordType,
-	db,
 	DealStage,
+	db,
 	InvoiceStatus,
 	ProjectStatus,
 	ProjectTaskPriority,
@@ -27,6 +27,9 @@ const TABLES = new Set([
 	"tblitemable",
 	"tblestimates",
 	"tblexpenses",
+	"tblexpenses_categories",
+	"tblemailtemplates",
+	"tbltickets_predefined_replies",
 	"tblcontracts",
 	"tbltickets",
 	"tblstaff",
@@ -75,6 +78,79 @@ const leadToClient = new Map(
 		.map((row) => [id(row.leadid), id(row.userid)]),
 );
 const counts: Record<string, number> = {};
+const expenseCategoryIds = new Map<string, string>();
+
+for (const row of rows(tables, "tblexpenses_categories")) {
+	const sourceId = id(row.id);
+	const name = text(row.name) || `Perfex expense category ${sourceId}`;
+	const category = await db.expenseCategory.upsert({
+		where: { source_sourceId: { source: SOURCE, sourceId } },
+		create: {
+			name,
+			description: nullable(row.description),
+			source: SOURCE,
+			sourceId,
+		},
+		update: { name, description: nullable(row.description), active: true },
+	});
+	expenseCategoryIds.set(sourceId, category.id);
+	bump(counts, "expenseCategories");
+}
+
+for (const row of rows(tables, "tblemailtemplates")) {
+	const sourceId = id(row.emailtemplateid || row.id);
+	await db.messageTemplate.upsert({
+		where: {
+			source_kind_sourceId: { source: SOURCE, kind: "EMAIL", sourceId },
+		},
+		create: {
+			kind: "EMAIL",
+			name:
+				text(row.name) || text(row.slug) || `Perfex email template ${sourceId}`,
+			subject: nullable(row.subject),
+			body: stripHtml(text(row.message) || text(row.body)),
+			category: nullable(row.type),
+			active: !Number(row.disabled),
+			source: SOURCE,
+			sourceId,
+		},
+		update: {
+			name:
+				text(row.name) || text(row.slug) || `Perfex email template ${sourceId}`,
+			subject: nullable(row.subject),
+			body: stripHtml(text(row.message) || text(row.body)),
+			category: nullable(row.type),
+			active: !Number(row.disabled),
+		},
+	});
+	bump(counts, "emailTemplates");
+}
+
+for (const row of rows(tables, "tbltickets_predefined_replies")) {
+	const sourceId = id(row.id || row.predefined_reply_id);
+	await db.messageTemplate.upsert({
+		where: {
+			source_kind_sourceId: {
+				source: SOURCE,
+				kind: "SUGGESTED_REPLY",
+				sourceId,
+			},
+		},
+		create: {
+			kind: "SUGGESTED_REPLY",
+			name: text(row.name) || `Perfex suggested reply ${sourceId}`,
+			body: stripHtml(text(row.message) || text(row.reply)),
+			category: "Support",
+			source: SOURCE,
+			sourceId,
+		},
+		update: {
+			name: text(row.name) || `Perfex suggested reply ${sourceId}`,
+			body: stripHtml(text(row.message) || text(row.reply)),
+		},
+	});
+	bump(counts, "suggestedReplies");
+}
 
 for (const row of rows(tables, "tblclients")) {
 	const sourceId = id(row.userid);
@@ -438,6 +514,15 @@ for (const row of rows(tables, "tblexpenses")) {
 		occurredAt: safeDate(row.date),
 		companyId: clientIds.get(id(row.clientid)) ?? null,
 		projectId: projectIds.get(id(row.project_id)) ?? null,
+		categoryId: expenseCategoryIds.get(id(row.category)) ?? null,
+		includedInFinancials: true,
+		billable: Boolean(Number(row.billable)),
+		clientVisible: Boolean(Number(row.billable)),
+		expenseScope: row.project_id
+			? "PROJECT"
+			: row.clientid
+				? "CLIENT"
+				: "COMPANY",
 		metadata: {
 			categoryId: id(row.category),
 			billable: Boolean(Number(row.billable)),
@@ -929,6 +1014,9 @@ function mappingSummary(map: TableMap) {
 		catalogItems: rows(map, "tblitems").length,
 		estimates: rows(map, "tblestimates").length,
 		expenses: rows(map, "tblexpenses").length,
+		expenseCategories: rows(map, "tblexpenses_categories").length,
+		emailTemplates: rows(map, "tblemailtemplates").length,
+		suggestedReplies: rows(map, "tbltickets_predefined_replies").length,
 		contracts: rows(map, "tblcontracts").length,
 		tickets: rows(map, "tbltickets").length,
 		staff: rows(map, "tblstaff").length,

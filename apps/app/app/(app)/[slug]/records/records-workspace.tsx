@@ -1,6 +1,7 @@
 "use client";
 
 import Add from "@carbon/icons-react/es/Add";
+import Edit from "@carbon/icons-react/es/Edit";
 import TrashCan from "@carbon/icons-react/es/TrashCan";
 import {
 	AlertDialog,
@@ -32,6 +33,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@crm/ui/components/select";
+import { Switch } from "@crm/ui/components/switch";
 import {
 	Table,
 	TableBody,
@@ -44,7 +46,7 @@ import { TablePagination } from "@crm/ui/components/table-pagination";
 import { Textarea } from "@crm/ui/components/textarea";
 import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/lib/trpc/client";
 
@@ -72,6 +74,12 @@ type RecordRow = {
 	dueAt: string | null;
 	company: { id: string; name: string } | null;
 	project: { id: string; name: string } | null;
+	includedInFinancials: boolean;
+	billable: boolean;
+	clientVisible: boolean;
+	expenseScope: "COMPANY" | "CLIENT" | "PROJECT" | null;
+	category: { id: string; name: string } | null;
+	financialAccount: { id: string; name: string } | null;
 };
 
 export function RecordsWorkspace() {
@@ -83,6 +91,7 @@ export function RecordsWorkspace() {
 	const [selected, setSelected] = useState<RecordRow | null>(null);
 	const [deleting, setDeleting] = useState<RecordRow | null>(null);
 	const [createOpen, setCreateOpen] = useState(false);
+	const [editing, setEditing] = useState<RecordRow | null>(null);
 	const records = useQuery(
 		trpc.records.list.queryOptions({
 			q,
@@ -112,6 +121,24 @@ export function RecordsWorkspace() {
 	return (
 		<div className="grid min-h-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
 			<section className="flex min-w-0 flex-col gap-4">
+				<div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+					{TYPES.map((value) => (
+						<Button
+							key={value}
+							variant={type === value ? "default" : "outline"}
+							size="sm"
+							onClick={() => {
+								setType(value);
+								setPage(1);
+							}}
+						>
+							{label(value)}{" "}
+							<span className="ml-auto opacity-60">
+								{records.data?.facetCounts?.type?.[value] ?? 0}
+							</span>
+						</Button>
+					))}
+				</div>
 				<div className="flex flex-wrap items-center gap-2 border-b pb-4">
 					<Input
 						className="min-w-56 flex-1"
@@ -122,27 +149,15 @@ export function RecordsWorkspace() {
 							setPage(1);
 						}}
 					/>
-					<Select
-						value={type}
-						onValueChange={(value) => {
-							setType(value);
+					<Button
+						variant="outline"
+						onClick={() => {
+							setType("all");
 							setPage(1);
 						}}
 					>
-						<SelectTrigger aria-label="Record type">
-							<SelectValue placeholder="All record types" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectGroup>
-								<SelectItem value="all">All record types</SelectItem>
-								{TYPES.map((value) => (
-									<SelectItem key={value} value={value}>
-										{label(value)}
-									</SelectItem>
-								))}
-							</SelectGroup>
-						</SelectContent>
-					</Select>
+						All records
+					</Button>
 					<Button onClick={() => setCreateOpen(true)}>
 						<Add data-icon="inline-start" /> Add record
 					</Button>
@@ -221,8 +236,17 @@ export function RecordsWorkspace() {
 				/>
 			</section>
 
-			<RecordDetail record={selected ?? rows[0] ?? null} />
-			<CreateRecordDialog open={createOpen} onOpenChange={setCreateOpen} />
+			<RecordDetail record={selected ?? rows[0] ?? null} onEdit={setEditing} />
+			<RecordDialog
+				open={createOpen}
+				onOpenChange={setCreateOpen}
+				record={null}
+			/>
+			<RecordDialog
+				open={Boolean(editing)}
+				onOpenChange={(open) => !open && setEditing(null)}
+				record={editing}
+			/>
 			<AlertDialog
 				open={Boolean(deleting)}
 				onOpenChange={(open) => !open && setDeleting(null)}
@@ -251,7 +275,13 @@ export function RecordsWorkspace() {
 	);
 }
 
-function RecordDetail({ record }: { record: RecordRow | null }) {
+function RecordDetail({
+	record,
+	onEdit,
+}: {
+	record: RecordRow | null;
+	onEdit: (record: RecordRow) => void;
+}) {
 	if (!record) {
 		return (
 			<aside className="hidden border-l pl-6 text-muted-foreground xl:block">
@@ -271,10 +301,29 @@ function RecordDetail({ record }: { record: RecordRow | null }) {
 						{record.status || "No status"}
 					</p>
 				</div>
+				<Button variant="outline" onClick={() => onEdit(record)}>
+					<Edit data-icon="inline-start" /> Edit record
+				</Button>
 				<dl className="grid gap-4 border-y py-5 text-sm">
 					<Detail term="Title" value={record.title} />
 					<Detail term="Company" value={record.company?.name ?? "Unlinked"} />
 					<Detail term="Project" value={record.project?.name ?? "Unlinked"} />
+					<Detail
+						term="Category"
+						value={record.category?.name ?? "Uncategorized"}
+					/>
+					<Detail
+						term="Paid from"
+						value={record.financialAccount?.name ?? "Unassigned"}
+					/>
+					<Detail
+						term="Financials"
+						value={record.includedInFinancials ? "Included" : "Excluded"}
+					/>
+					<Detail
+						term="Client"
+						value={record.clientVisible ? "Visible" : "Internal"}
+					/>
 					<Detail
 						term="Amount"
 						value={
@@ -309,12 +358,14 @@ function Detail({ term, value }: { term: string; value: string }) {
 	);
 }
 
-function CreateRecordDialog({
+function RecordDialog({
 	open,
 	onOpenChange,
+	record,
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	record: RecordRow | null;
 }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
@@ -326,8 +377,18 @@ function CreateRecordDialog({
 	const [companyId, setCompanyId] = useState("");
 	const [projectId, setProjectId] = useState("");
 	const [description, setDescription] = useState("");
+	const [includedInFinancials, setIncludedInFinancials] = useState(true);
+	const [billable, setBillable] = useState(false);
+	const [clientVisible, setClientVisible] = useState(false);
+	const [expenseScope, setExpenseScope] = useState<
+		"COMPANY" | "CLIENT" | "PROJECT"
+	>("COMPANY");
+	const [categoryId, setCategoryId] = useState("");
+	const [financialAccountId, setFinancialAccountId] = useState("");
 	const companies = useQuery(trpc.companies.options.queryOptions({ q: "" }));
 	const projects = useQuery(trpc.projects.options.queryOptions());
+	const categories = useQuery(trpc.operations.expenseCategories.queryOptions());
+	const accounts = useQuery(trpc.operations.financialAccounts.queryOptions());
 	const projectOptions = useMemo(() => projects.data ?? [], [projects.data]);
 	const create = useMutation(
 		trpc.records.create.mutationOptions({
@@ -346,11 +407,44 @@ function CreateRecordDialog({
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const update = useMutation(
+		trpc.records.update.mutationOptions({
+			onSuccess: async (saved) => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.records.list.queryKey(),
+				});
+				onOpenChange(false);
+				toast.success(`${saved.title} updated.`);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	useEffect(() => {
+		if (!open) return;
+		setType(record?.type ?? "ESTIMATE");
+		setTitle(record?.title ?? "");
+		setReference(record?.reference ?? "");
+		setStatus(record?.status ?? "");
+		setAmount(
+			record?.amountCents == null ? "" : String(record.amountCents / 100),
+		);
+		setCompanyId(record?.company?.id ?? "");
+		setProjectId(record?.project?.id ?? "");
+		setDescription(record?.description ?? "");
+		setIncludedInFinancials(record?.includedInFinancials ?? true);
+		setBillable(record?.billable ?? false);
+		setClientVisible(record?.clientVisible ?? false);
+		setExpenseScope(record?.expenseScope ?? "COMPANY");
+		setCategoryId(record?.category?.id ?? "");
+		setFinancialAccountId(record?.financialAccount?.id ?? "");
+	}, [open, record]);
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Add business record</DialogTitle>
+					<DialogTitle>
+						{record ? `Edit ${label(record.type)}` : "Add business record"}
+					</DialogTitle>
 					<DialogDescription>
 						Create a record and optionally link it to a company or project.
 					</DialogDescription>
@@ -358,7 +452,7 @@ function CreateRecordDialog({
 				<form
 					onSubmit={(event) => {
 						event.preventDefault();
-						create.mutate({
+						const values = {
 							type,
 							title,
 							reference: reference || null,
@@ -368,7 +462,16 @@ function CreateRecordDialog({
 							companyId: companyId || null,
 							projectId: projectId || null,
 							description: description || null,
-						});
+							includedInFinancials,
+							billable,
+							clientVisible,
+							expenseScope: type === "EXPENSE" ? expenseScope : null,
+							categoryId: type === "EXPENSE" ? categoryId || null : null,
+							financialAccountId:
+								type === "EXPENSE" ? financialAccountId || null : null,
+						};
+						if (record) update.mutate({ id: record.id, ...values });
+						else create.mutate(values);
 					}}
 				>
 					<FieldGroup>
@@ -392,6 +495,101 @@ function CreateRecordDialog({
 								</SelectContent>
 							</Select>
 						</Field>
+						{type === "EXPENSE" ? (
+							<>
+								<div className="grid grid-cols-2 gap-4">
+									<Field>
+										<FieldLabel>Category</FieldLabel>
+										<Select
+											value={categoryId || "none"}
+											onValueChange={(value) =>
+												setCategoryId(value === "none" ? "" : value)
+											}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Uncategorized" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectGroup>
+													<SelectItem value="none">Uncategorized</SelectItem>
+													{(categories.data ?? []).map((item) => (
+														<SelectItem key={item.id} value={item.id}>
+															{item.name}
+														</SelectItem>
+													))}
+												</SelectGroup>
+											</SelectContent>
+										</Select>
+									</Field>
+									<Field>
+										<FieldLabel>Expense scope</FieldLabel>
+										<Select
+											value={expenseScope}
+											onValueChange={(value) =>
+												setExpenseScope(value as typeof expenseScope)
+											}
+										>
+											<SelectTrigger>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectGroup>
+													<SelectItem value="COMPANY">
+														Company / internal
+													</SelectItem>
+													<SelectItem value="CLIENT">Client</SelectItem>
+													<SelectItem value="PROJECT">Project</SelectItem>
+												</SelectGroup>
+											</SelectContent>
+										</Select>
+									</Field>
+								</div>
+								<Field>
+									<FieldLabel>Paid from</FieldLabel>
+									<Select
+										value={financialAccountId || "none"}
+										onValueChange={(value) =>
+											setFinancialAccountId(value === "none" ? "" : value)
+										}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="No account assigned" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectGroup>
+												<SelectItem value="none">
+													No account assigned
+												</SelectItem>
+												{(accounts.data ?? []).map((item) => (
+													<SelectItem key={item.id} value={item.id}>
+														{item.name}
+													</SelectItem>
+												))}
+											</SelectGroup>
+										</SelectContent>
+									</Select>
+								</Field>
+								<ToggleField
+									label="Include in financial calculations"
+									checked={includedInFinancials}
+									onChange={setIncludedInFinancials}
+								/>
+								<ToggleField
+									label="Billable to client"
+									checked={billable}
+									onChange={(value) => {
+										setBillable(value);
+										if (!value) setClientVisible(false);
+									}}
+								/>
+								<ToggleField
+									label="Visible in client portal"
+									checked={clientVisible}
+									onChange={setClientVisible}
+									disabled={!billable}
+								/>
+							</>
+						) : null}
 						<Field>
 							<FieldLabel htmlFor="record-title">Title</FieldLabel>
 							<Input
@@ -484,8 +682,11 @@ function CreateRecordDialog({
 						</Field>
 					</FieldGroup>
 					<DialogFooter className="mt-5">
-						<Button type="submit" disabled={!title.trim() || create.isPending}>
-							Create record
+						<Button
+							type="submit"
+							disabled={!title.trim() || create.isPending || update.isPending}
+						>
+							{record ? "Save changes" : "Create record"}
 						</Button>
 					</DialogFooter>
 				</form>
@@ -499,4 +700,27 @@ function label(value: string): string {
 		.toLowerCase()
 		.replaceAll("_", " ")
 		.replace(/^./, (character) => character.toUpperCase());
+}
+
+function ToggleField({
+	label: text,
+	checked,
+	onChange,
+	disabled = false,
+}: {
+	label: string;
+	checked: boolean;
+	onChange: (value: boolean) => void;
+	disabled?: boolean;
+}) {
+	return (
+		<div className="flex items-center justify-between rounded-lg border p-3 text-sm">
+			<span>{text}</span>
+			<Switch
+				checked={checked}
+				onCheckedChange={onChange}
+				disabled={disabled}
+			/>
+		</div>
+	);
 }

@@ -23,25 +23,27 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
-  ownedCompanies               Company[]               @relation("CompanyOwner")
-  ownedContacts                Contact[]               @relation("ContactOwner")
-  ownedDeals                   Deal[]                  @relation("DealOwner")
-  ownedProjects                Project[]               @relation("ProjectOwner")
+  ownedCompanies               Company[]                  @relation("CompanyOwner")
+  ownedContacts                Contact[]                  @relation("ContactOwner")
+  ownedDeals                   Deal[]                     @relation("DealOwner")
+  ownedProjects                Project[]                  @relation("ProjectOwner")
   projectMemberships           ProjectMember[]
-  assignedProjectTasks         ProjectTask[]           @relation("ProjectTaskAssignee")
-  createdProjectTasks          ProjectTask[]           @relation("ProjectTaskCreator")
-  createdInvoices              Invoice[]               @relation("InvoiceCreator")
+  assignedProjectTasks         ProjectTask[]              @relation("ProjectTaskAssignee")
+  createdProjectTasks          ProjectTask[]              @relation("ProjectTaskCreator")
+  createdInvoices              Invoice[]                  @relation("InvoiceCreator")
   notifications                Notification[]
-  activities                   Activity[]              @relation("ActivityAuthor")
+  activities                   Activity[]                 @relation("ActivityAuthor")
   mailboxSyncs                 MailboxSync[]
-  factDecisions                ContactFact[]           @relation("FactDecider")
-  conversations                AgentConversation[]     @relation("ConversationOwner")
-  fieldValues                  FieldValue[]            @relation("FieldValueUser")
+  factDecisions                ContactFact[]              @relation("FactDecider")
+  conversations                AgentConversation[]        @relation("ConversationOwner")
+  fieldValues                  FieldValue[]               @relation("FieldValueUser")
   portalAccesses               ClientPortalAccess[]
   serviceRequestMessages       ServiceRequestMessage[]
-  assignedSupportConversations SupportConversation[]   @relation("SupportConversationAssignee")
+  assignedSupportConversations SupportConversation[]      @relation("SupportConversationAssignee")
   supportMessages              SupportMessage[]
   reviewedPaymentSubmissions   InvoicePaymentSubmission[] @relation("PaymentSubmissionReviewer")
+  staffProfile                 StaffProfile?
+  timeEntries                  TimeEntry[]                @relation("TimeEntryStaff")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -369,6 +371,53 @@ enum PaymentSubmissionStatus {
   REJECTED
 }
 
+enum ExpenseScope {
+  COMPANY
+  CLIENT
+  PROJECT
+}
+
+enum FinancialAccountKind {
+  OPERATING
+  SAVINGS
+  CREDIT_CARD
+  MERCHANT
+  STRIPE
+  CASH
+  OTHER
+}
+
+enum MessageTemplateKind {
+  EMAIL
+  SUGGESTED_REPLY
+}
+
+enum MetricPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum BusinessDocumentKind {
+  ANNUAL_FILING
+  TAX
+  ORC
+  TCC
+  CERTIFICATE
+  LICENSE
+  CONTRACT
+  MSA
+  COMPANY_STAMP
+  AUTHORIZED_SIGNATURE
+  DIRECTOR_RECORD
+  INVESTOR_AGREEMENT
+  POLICY
+  OTHER
+}
+
 model Company {
   id          String  @id @default(cuid())
   name        String
@@ -412,7 +461,7 @@ model Company {
 
   lastActivityAt DateTime?
 
-  contacts             Contact[]             @relation("CompanyContacts")
+  contacts             Contact[]                  @relation("CompanyContacts")
   conversations        AgentConversation[]
   deals                Deal[]
   projects             Project[]
@@ -427,8 +476,8 @@ model Company {
   supportConversations SupportConversation[]
   paymentSubmissions   InvoicePaymentSubmission[]
   fieldValues          FieldValue[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
 
   @@index([ownerId])
   @@index([name])
@@ -1082,16 +1131,20 @@ model Project {
   budget    Decimal?  @db.Decimal(14, 2)
   currency  String    @default("USD")
 
-  members          ProjectMember[]
-  tasks            ProjectTask[]
-  invoices         Invoice[]
-  notifications    Notification[]
-  businessRecords  BusinessRecord[]
-  meetingSummaries MeetingSummary[]
-  catalogItems     ProjectCatalogItem[]
-  serviceRequests  ServiceRequest[]
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  members           ProjectMember[]
+  tasks             ProjectTask[]
+  invoices          Invoice[]
+  notifications     Notification[]
+  businessRecords   BusinessRecord[]
+  meetingSummaries  MeetingSummary[]
+  catalogItems      ProjectCatalogItem[]
+  serviceRequests   ServiceRequest[]
+  milestones        ProjectMilestone[]
+  timeEntries       TimeEntry[]
+  resourceUsage     ProjectResourceUsage[]
+  businessDocuments BusinessDocument[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   @@index([companyId])
   @@index([ownerId])
@@ -1118,6 +1171,7 @@ model CatalogItem {
   active           Boolean              @default(true)
   projectLinks     ProjectCatalogItem[]
   invoiceLines     InvoiceLine[]
+  costProfile      CatalogCostProfile?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -1208,13 +1262,13 @@ model Invoice {
   sentAt         DateTime?
   paidAt         DateTime?
 
-  lines           InvoiceLine[]
-  notifications   Notification[]
-  deliveries      EmailDelivery[]
-  businessRecords BusinessRecord[]
+  lines              InvoiceLine[]
+  notifications      Notification[]
+  deliveries         EmailDelivery[]
+  businessRecords    BusinessRecord[]
   paymentSubmissions InvoicePaymentSubmission[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
   @@index([companyId])
   @@index([projectId])
@@ -1268,6 +1322,15 @@ model BusinessRecord {
   invoiceId String?
   invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
+  includedInFinancials Boolean           @default(true)
+  billable             Boolean           @default(false)
+  clientVisible        Boolean           @default(false)
+  expenseScope         ExpenseScope?
+  categoryId           String?
+  category             ExpenseCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  financialAccountId   String?
+  financialAccount     FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+
   source    String   @default("MANUAL")
   sourceId  String?
   metadata  Json?
@@ -1278,7 +1341,247 @@ model BusinessRecord {
   @@index([type, occurredAt])
   @@index([companyId])
   @@index([projectId])
+  @@index([categoryId])
+  @@index([financialAccountId])
+  @@index([includedInFinancials, type])
   @@map("businessRecord")
+}
+
+model ExpenseCategory {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  active      Boolean          @default(true)
+  source      String           @default("MANUAL")
+  sourceId    String?
+  expenses    BusinessRecord[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([source, sourceId])
+  @@map("expenseCategory")
+}
+
+model MessageTemplate {
+  id        String              @id @default(cuid())
+  kind      MessageTemplateKind
+  name      String
+  subject   String?
+  body      String
+  category  String?
+  active    Boolean             @default(true)
+  source    String              @default("MANUAL")
+  sourceId  String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([source, kind, sourceId])
+  @@index([kind, active])
+  @@map("messageTemplate")
+}
+
+model FinancialAccount {
+  id             String               @id @default(cuid())
+  name           String
+  kind           FinancialAccountKind
+  institution    String?
+  currency       String               @default("JMD")
+  lastFour       String?
+  openingBalance Decimal              @default(0) @db.Decimal(14, 2)
+  currentBalance Decimal              @default(0) @db.Decimal(14, 2)
+  active         Boolean              @default(true)
+  notes          String?
+  expenses       BusinessRecord[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([kind, active])
+  @@map("financialAccount")
+}
+
+model CatalogCostProfile {
+  id                 String      @id @default(cuid())
+  catalogItemId      String      @unique
+  catalogItem        CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  currency           String      @default("JMD")
+  implementationCost Decimal     @default(0) @db.Decimal(14, 2)
+  deliveryCost       Decimal     @default(0) @db.Decimal(14, 2)
+  monthlyRunCost     Decimal     @default(0) @db.Decimal(14, 2)
+  monthlyHostingCost Decimal     @default(0) @db.Decimal(14, 2)
+  contractorCost     Decimal     @default(0) @db.Decimal(14, 2)
+  internalHours      Decimal     @default(0) @db.Decimal(10, 2)
+  targetMarginPct    Decimal     @default(35) @db.Decimal(6, 2)
+  listPrice          Decimal     @default(0) @db.Decimal(14, 2)
+  notes              String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@map("catalogCostProfile")
+}
+
+model StaffProfile {
+  id                String                  @id @default(cuid())
+  userId            String?                 @unique
+  user              User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email             String                  @unique
+  name              String
+  jobTitle          String?
+  department        String?
+  employmentType    String?
+  active            Boolean                 @default(true)
+  startDate         DateTime?
+  endDate           DateTime?
+  contractSummary   String?
+  compensationPlans StaffCompensationPlan[]
+  metrics           StaffMetric[]
+  timeEntries       TimeEntry[]             @relation("TimeEntryProfile")
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([active, department])
+  @@map("staffProfile")
+}
+
+model StaffCompensationPlan {
+  id             String       @id @default(cuid())
+  staffProfileId String
+  staffProfile   StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+  name           String
+  currency       String       @default("JMD")
+  baseAmount     Decimal      @default(0) @db.Decimal(14, 2)
+  hourlyRate     Decimal      @default(0) @db.Decimal(14, 2)
+  commissionPct  Decimal      @default(0) @db.Decimal(6, 2)
+  bonusFormula   String?
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([staffProfileId, active])
+  @@map("staffCompensationPlan")
+}
+
+model StaffMetric {
+  id             String       @id @default(cuid())
+  staffProfileId String
+  staffProfile   StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+  period         MetricPeriod
+  kind           String
+  title          String
+  target         Decimal?     @db.Decimal(14, 2)
+  actual         Decimal?     @db.Decimal(14, 2)
+  unit           String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  status         String       @default("OPEN")
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([staffProfileId, periodStart])
+  @@index([period, status])
+  @@map("staffMetric")
+}
+
+model TimeEntry {
+  id             String        @id @default(cuid())
+  staffProfileId String?
+  staffProfile   StaffProfile? @relation("TimeEntryProfile", fields: [staffProfileId], references: [id], onDelete: SetNull)
+  staffUserId    String?
+  staffUser      User?         @relation("TimeEntryStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+  projectId      String?
+  project        Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId         String?
+  description    String
+  startedAt      DateTime
+  endedAt        DateTime?
+  minutes        Int           @default(0)
+  billable       Boolean       @default(false)
+  hourlyCost     Decimal       @default(0) @db.Decimal(14, 2)
+  hourlyBillRate Decimal       @default(0) @db.Decimal(14, 2)
+  approved       Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([projectId, startedAt])
+  @@index([staffProfileId, startedAt])
+  @@map("timeEntry")
+}
+
+model ProjectMilestone {
+  id            String    @id @default(cuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  dueDate       DateTime?
+  completedAt   DateTime?
+  position      Int       @default(0)
+  clientVisible Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([projectId, position])
+  @@map("projectMilestone")
+}
+
+model ProjectResourceUsage {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  taskId        String?
+  agentId       String?
+  label         String
+  processingMs  Int      @default(0)
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  estimatedCost Decimal  @default(0) @db.Decimal(14, 6)
+  occurredAt    DateTime @default(now())
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([projectId, occurredAt])
+  @@index([agentId, occurredAt])
+  @@map("projectResourceUsage")
+}
+
+model BusinessDocument {
+  id          String               @id @default(cuid())
+  kind        BusinessDocumentKind
+  title       String
+  label       String?
+  description String?
+  projectId   String?
+  project     Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  fileName    String
+  mediaType   String
+  size        Int
+  content     Bytes
+  expiresAt   DateTime?
+  source      String               @default("MANUAL")
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([kind, updatedAt])
+  @@index([projectId, updatedAt])
+  @@map("businessDocument")
+}
+
+model AuditEntry {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actorId    String?
+  summary    String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("auditEntry")
 }
 
 model ExternalRecordLink {
@@ -1770,8 +2073,8 @@ model SupportMessage {
 }
 
 model PaymentBankAccount {
-  id            String  @id @default(cuid())
-  currency      String  @unique
+  id            String   @id @default(cuid())
+  currency      String   @unique
   label         String
   bankName      String
   bankAddress   String?
@@ -1781,7 +2084,7 @@ model PaymentBankAccount {
   accountType   String?
   swiftCode     String?
   branchCode    String?
-  active        Boolean @default(true)
+  active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -1810,10 +2113,10 @@ model InvoicePaymentSubmission {
   status              PaymentSubmissionStatus @default(PENDING_VERIFICATION)
   reviewNote          String?
   reviewedById        String?
-  reviewedBy          User?                    @relation("PaymentSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedBy          User?                   @relation("PaymentSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt          DateTime?
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
 
   @@index([invoiceId, createdAt])
   @@index([companyId, status, createdAt])
@@ -1872,17 +2175,17 @@ model AppSetting {
 }
 
 model PaperclipOutbox {
-  id          String   @id @default(cuid())
-  kind        String
-  targetId    String?
-  payload     Json
-  status      String   @default("PENDING")
-  attempts    Int      @default(0)
-  lastError   String?
-  createdById String
+  id            String   @id @default(cuid())
+  kind          String
+  targetId      String?
+  payload       Json
+  status        String   @default("PENDING")
+  attempts      Int      @default(0)
+  lastError     String?
+  createdById   String
   nextAttemptAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([status, nextAttemptAt])
   @@index([createdAt])

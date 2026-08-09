@@ -59,6 +59,11 @@ export class PortalService {
 
 	async grant(input: z.infer<typeof portalGrantInput>, actorId: string) {
 		await this.assertAdmin(actorId);
+		const company = await this.db.company.findUnique({
+			where: { id: input.companyId },
+			select: { id: true, domain: true },
+		});
+		if (!company) throw new NotFoundException("Company account not found.");
 		if (input.contactId) {
 			const contact = await this.db.contact.findFirst({
 				where: { id: input.contactId, companyId: input.companyId },
@@ -70,6 +75,19 @@ export class PortalService {
 				);
 		}
 		const email = input.email.trim().toLowerCase();
+		const emailDomain = email.split("@")[1] ?? "";
+		const companyDomain =
+			company.domain?.toLowerCase().replace(/^www\./, "") ?? "";
+		if (
+			emailDomain !== "gmail.com" &&
+			(!companyDomain ||
+				(emailDomain !== companyDomain &&
+					!emailDomain.endsWith(`.${companyDomain}`)))
+		) {
+			throw new ForbiddenException(
+				`Client access must use Gmail or the company domain${companyDomain ? ` (${companyDomain})` : ""}.`,
+			);
+		}
 		const access = await this.db.clientPortalAccess.upsert({
 			where: { email },
 			create: {

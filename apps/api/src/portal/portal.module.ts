@@ -8,5 +8,6 @@ import { PortalService } from "./portal.service";
 @Module({
 	imports: [AiModule, NotificationsModule, TrpcModule],
 	providers: [PortalRouter, PortalService],
+	exports: [PortalService],
 })
 export class PortalModule {}

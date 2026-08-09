@@ -31,9 +31,14 @@ async function signInOptions(): Promise<SignInOptions | null> {
 	}
 }
 
-export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
+export default async function SignInPage({
+	searchParams,
+}: PageProps<"/sign-in">) {
+	const { callbackURL } = await searchParams;
+	const clientPortal =
+		typeof callbackURL === "string" && callbackURL.startsWith("/client");
 	return (
-		<AuthShell>
+		<AuthShell variant={clientPortal ? "client" : "staff"}>
 			<Suspense
 				fallback={
 					<AuthHeading
@@ -110,8 +115,12 @@ async function SignIn({
 	return (
 		<>
 			<AuthHeading
-				title="Welcome back"
-				description="Sign in with your account to continue."
+				title={clientPortal ? "Client portal" : "Welcome back"}
+				description={
+					clientPortal
+						? "Sign in to manage projects, invoices, service requests and account updates."
+						: "Sign in with your account to continue."
+				}
 			/>
 			<CredentialsForm callbackPath={callbackPath} />
 			{showSso || social.length > 0 ? (

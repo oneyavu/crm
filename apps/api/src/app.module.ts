@@ -9,6 +9,7 @@ import { AuthModule } from "./auth/auth.module";
 import { BackfillModule } from "./backfill/backfill.module";
 import { AppCacheModule } from "./cache/cache.module";
 import { CatalogModule } from "./catalog/catalog.module";
+import { ClientsModule } from "./clients/clients.module";
 import { CompaniesModule } from "./companies/companies.module";
 import { validateEnv } from "./config/env.validation";
 import { ContactsModule } from "./contacts/contacts.module";
@@ -28,6 +29,7 @@ import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { OperationsModule } from "./operations/operations.module";
 import { PaperclipModule } from "./paperclip/paperclip.module";
 import { PortalModule } from "./portal/portal.module";
 import { ProjectsModule } from "./projects/projects.module";
@@ -61,6 +63,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		TrpcModule,
 		UsersModule,
 		CompaniesModule,
+		ClientsModule,
 		ContactsModule,
 		ConversationsModule,
 		CurrencyModule,
@@ -76,6 +79,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		GoogleModule,
 		MicrosoftModule,
 		NotificationsModule,
+		OperationsModule,
 		ProjectsModule,
 		PortalModule,
 		PaperclipModule,
