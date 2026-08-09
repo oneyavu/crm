@@ -1,6 +1,7 @@
 "use client";
 
 import ArrowLeft from "@carbon/icons-react/es/ArrowLeft";
+import Printer from "@carbon/icons-react/es/Printer";
 import Send from "@carbon/icons-react/es/Send";
 import TrashCan from "@carbon/icons-react/es/TrashCan";
 import {
@@ -13,10 +14,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@crm/ui/components/alert-dialog";
-import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
-import { CardContent } from "@crm/ui/components/card";
-import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,6 +30,7 @@ import {
 } from "@/components/page-shell";
 import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { InvoiceDocument } from "./invoice-document";
 
 export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 	const trpc = useTRPC();
@@ -94,7 +93,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 				</PageShellHeading>
 			</PageShellHeader>
 			<PageShellContent>
-				<div className="flex flex-wrap items-center justify-between gap-3">
+				<div className="print:hidden flex flex-wrap items-center justify-between gap-3">
 					<Link
 						href={workspaceUrl("/invoices")}
 						className="inline-flex items-center gap-2 text-muted-foreground text-sm hover:text-foreground"
@@ -102,6 +101,13 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 						<ArrowLeft /> Invoices
 					</Link>
 					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							onClick={() => window.print()}
+							disabled={!data}
+						>
+							<Printer data-icon="inline-start" /> Print / Save PDF
+						</Button>
 						<Button variant="outline" onClick={() => setDeleteOpen(true)}>
 							<TrashCan data-icon="inline-start" /> Delete
 						</Button>
@@ -120,61 +126,7 @@ export function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
 						</Button>
 					</div>
 				</div>
-				{data ? (
-					<CardContent className="mx-auto w-full max-w-3xl gap-6">
-						<div className="flex justify-between gap-6">
-							<div>
-								<p className="text-muted-foreground text-xs uppercase tracking-wider">
-									Bill to
-								</p>
-								<p className="mt-1 font-medium">
-									{data.recipientName ?? data.company.name}
-								</p>
-								<p className="text-muted-foreground text-sm">
-									{data.recipientEmail ?? "No recipient email"}
-								</p>
-							</div>
-							<div className="text-right">
-								<Badge>{data.status}</Badge>
-								<p className="mt-3 text-muted-foreground text-xs">
-									Issued {data.issueDate.slice(0, 10)}
-								</p>
-							</div>
-						</div>
-						<div className="divide-y rounded-md border">
-							{data.lines.map((line) => (
-								<div
-									key={line.id}
-									className="grid grid-cols-[1fr_auto] gap-4 p-4"
-								>
-									<div>
-										<p className="font-medium text-sm">{line.description}</p>
-										<p className="text-muted-foreground text-xs">
-											Qty {line.quantity}
-										</p>
-									</div>
-									<span className="tabular-nums">
-										{formatMoney(line.amountCents, data.currency)}
-									</span>
-								</div>
-							))}
-						</div>
-						<div className="ml-auto grid w-full max-w-xs grid-cols-2 gap-2 text-sm">
-							<span className="text-muted-foreground">Subtotal</span>
-							<span className="text-right tabular-nums">
-								{formatMoney(data.subtotalCents, data.currency)}
-							</span>
-							<span className="text-muted-foreground">Tax</span>
-							<span className="text-right tabular-nums">
-								{formatMoney(data.taxCents, data.currency)}
-							</span>
-							<span className="font-medium">Total</span>
-							<span className="text-right font-medium tabular-nums">
-								{formatMoney(data.totalCents, data.currency)}
-							</span>
-						</div>
-					</CardContent>
-				) : null}
+				{data ? <InvoiceDocument invoice={data} /> : null}
 				<AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
 					<AlertDialogContent>
 						<AlertDialogHeader>

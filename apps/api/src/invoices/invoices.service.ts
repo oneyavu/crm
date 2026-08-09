@@ -30,7 +30,18 @@ const SORTABLE: Record<
 };
 
 const INVOICE_DETAIL_INCLUDE = {
-	company: { select: { id: true, name: true, website: true } },
+	company: {
+		select: {
+			id: true,
+			name: true,
+			website: true,
+			city: true,
+			stateCode: true,
+			country: true,
+			phone: true,
+			email: true,
+		},
+	},
 	project: { select: { id: true, name: true } },
 	lines: {
 		orderBy: { position: "asc" as const },

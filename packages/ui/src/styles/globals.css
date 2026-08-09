@@ -77,6 +77,42 @@
 	--spacing: 0.25rem;
 }
 
+@media print {
+	@page {
+		size: A4;
+		margin: 0;
+	}
+
+	body {
+		background: white;
+	}
+
+	body > * {
+		visibility: hidden;
+	}
+
+	.invoice-document,
+	.invoice-document * {
+		visibility: visible;
+	}
+
+	.invoice-document {
+		position: absolute;
+		inset: 0;
+		width: 210mm;
+		max-width: none;
+	}
+
+	.invoice-page {
+		break-after: page;
+		box-shadow: none;
+	}
+
+	.invoice-page:last-child {
+		break-after: auto;
+	}
+}
+
 .dark {
 	--background: #050505;
 	--foreground: #f4f3f1;
