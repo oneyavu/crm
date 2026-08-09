@@ -2,11 +2,14 @@
 
 import Add from "@carbon/icons-react/es/Add";
 import Partnership from "@carbon/icons-react/es/Partnership";
+import Launch from "@carbon/icons-react/es/Launch";
 import Star from "@carbon/icons-react/es/Star";
 import StarFilled from "@carbon/icons-react/es/StarFilled";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
 import UserMultiple from "@carbon/icons-react/es/UserMultiple";
 import type { FieldValueJson } from "@crm/db/fields";
 import { Button } from "@crm/ui/components/button";
+import { Badge } from "@crm/ui/components/badge";
 import { EmptyCellValue } from "@crm/ui/components/empty-cell";
 import {
 	EntityLogo,
@@ -23,6 +26,7 @@ import {
 } from "@crm/ui/components/tooltip";
 import { formatMoney } from "@crm/ui/lib/format";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { toast } from "sonner";
 import { AgentPanel } from "@/components/crm/agent-panel";
 import { EnrichmentActions } from "@/components/crm/enrichment-actions";
@@ -214,6 +218,11 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 					content: <Timeline anchor={{ companyId: company.id }} />,
 				},
 				{
+					value: "portal",
+					label: "Portal",
+					content: <CompanyPortal company={company} />,
+				},
+				{
 					value: "agent",
 					label: "Agent",
 					content: <AgentPanel record={{ kind: "company", id: company.id }} />,
@@ -300,6 +309,135 @@ export function CompanySheet({ companyId }: { companyId: string }) {
 			tab={tab}
 			onTabChange={setTab}
 		/>
+	);
+}
+
+function CompanyPortal({ company }: { company: Company }) {
+	const trpc = useTRPC();
+	const access = useQuery(
+		trpc.portal.list.queryOptions({ companyId: company.id }),
+	);
+	const grant = useMutation(
+		trpc.portal.grant.mutationOptions({
+			onSuccess: async () => {
+				await access.refetch();
+				toast.success("Client portal access enabled.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const revoke = useMutation(
+		trpc.portal.revoke.mutationOptions({
+			onSuccess: async () => {
+				await access.refetch();
+				toast.success("Client portal access revoked.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const activeEmails = new Set(
+		(access.data ?? [])
+			.filter((item) => item.active)
+			.map((item) => item.email.toLowerCase()),
+	);
+
+	if (access.isError) {
+		return (
+			<DetailSheetEmpty
+				icon={UserMultiple}
+				title="Administrator access required"
+				description="Only workspace owners and administrators can manage client portal access."
+			/>
+		);
+	}
+
+	return (
+		<DetailSheetBody>
+			<div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
+				<div>
+					<p className="font-medium">Client portal access</p>
+					<p className="mt-1 text-muted-foreground text-sm">
+						Enable only the contacts who may view this account's projects,
+						invoices and meeting summaries.
+					</p>
+				</div>
+				<Button asChild variant="outline" size="sm">
+					<Link href="/client" target="_blank" rel="noreferrer">
+						<Launch data-icon="inline-start" /> Open portal
+					</Link>
+				</Button>
+			</div>
+			<div className="space-y-2 p-5">
+				{company.contacts.map((contact) => {
+					const email = contact.email?.toLowerCase();
+					const enabled = email ? activeEmails.has(email) : false;
+					const record = (access.data ?? []).find(
+						(item) => item.email.toLowerCase() === email,
+					);
+					return (
+						<div
+							key={contact.id}
+							className="flex items-center gap-3 rounded-md border p-3"
+						>
+							<PersonAvatar
+								src={contact.imageUrl}
+								name={[contact.firstName, contact.lastName]
+									.filter(Boolean)
+									.join(" ")}
+								email={contact.email}
+								size="sm"
+							/>
+							<div className="min-w-0 flex-1">
+								<p className="truncate font-medium text-sm">
+									{[contact.firstName, contact.lastName]
+										.filter(Boolean)
+										.join(" ")}
+								</p>
+								<p className="truncate text-muted-foreground text-xs">
+									{contact.email ?? "An email address is required"}
+								</p>
+							</div>
+							{enabled ? <Badge>Enabled</Badge> : null}
+							{enabled && record ? (
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label={`Revoke portal access for ${contact.email}`}
+									disabled={revoke.isPending}
+									onClick={() => revoke.mutate({ id: record.id })}
+								>
+									<TrashCan />
+								</Button>
+							) : (
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={!email || grant.isPending}
+									onClick={() => {
+										if (email) {
+											grant.mutate({
+												companyId: company.id,
+												contactId: contact.id,
+												email,
+											});
+										}
+									}}
+								>
+									Enable
+								</Button>
+							)}
+						</div>
+					);
+				})}
+				{company.contacts.length === 0 ? (
+					<DetailSheetEmpty
+						icon={UserMultiple}
+						title="Add a contact first"
+						description="Portal access is granted to a named client contact and verified by their email address."
+					/>
+				) : null}
+			</div>
+		</DetailSheetBody>
 	);
 }
 
