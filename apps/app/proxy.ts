@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
 	if (
 		getSessionCookie(request, { cookiePrefix: AUTH_COOKIE_PREFIX }) === null
 	) {
-		if (isPublic(pathname)) return NextResponse.next();
+		if (isPublic(pathname) || isUngated(pathname)) return NextResponse.next();
 		const signIn = new URL(SIGN_IN_PATH, request.nextUrl);
 		if (isUnder(pathname, "/client")) {
 			signIn.searchParams.set(
