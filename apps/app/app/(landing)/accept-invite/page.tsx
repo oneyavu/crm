@@ -1,6 +1,8 @@
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { InviteAcceptance } from "./invite-acceptance";
 
+export const instant = false;
+
 export default async function AcceptInvitePage({
 	searchParams,
 }: PageProps<"/accept-invite">) {
