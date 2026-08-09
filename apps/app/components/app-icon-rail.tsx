@@ -32,8 +32,8 @@ import { useMemo } from "react";
 import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-sidebar";
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
-import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 import { VayuWordmark } from "@/components/vayu-brand";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type RailItem = {
 	title: string;
@@ -44,8 +44,6 @@ type RailItem = {
 	external?: boolean;
 	nested?: boolean;
 };
-
-const BNS_URL = "https://uas3.cams.scotiabank.com/aos/cms/login/cmslogin.bns";
 
 const ITEMS: RailItem[] = [
 	{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
@@ -68,10 +66,9 @@ const ITEMS: RailItem[] = [
 	{ title: "Invoices", href: "/invoices", icon: Receipt, match: "prefix" },
 	{
 		title: "BNS Online Banking",
-		href: BNS_URL,
+		href: "/banking",
 		icon: Receipt,
-		match: "exact",
-		external: true,
+		match: "prefix",
 		nested: true,
 	},
 	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
