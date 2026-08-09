@@ -9,6 +9,7 @@ import { env } from "./env";
 import { ensureWorkspaceMembership } from "./organization";
 import {
 	GOOGLE_PROVIDER_ID,
+	IDENTITY_SCOPES,
 	MICROSOFT_PROVIDER_ID,
 	MICROSOFT_SYNC_SCOPES,
 	SYNC_SCOPES,
@@ -26,7 +27,9 @@ if (env.google) {
 	socialProviders.google = {
 		...env.google,
 
-		scope: [...SYNC_SCOPES],
+		// Keep sign-in limited to identity data. Gmail and Calendar access is
+		// requested separately from Settings when the user chooses to connect it.
+		scope: [...IDENTITY_SCOPES],
 
 		accessType: "offline",
 
