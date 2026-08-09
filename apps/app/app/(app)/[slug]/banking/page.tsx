@@ -11,7 +11,7 @@ import {
 	PageShellHeading,
 	PageShellTitle,
 } from "@/components/page-shell";
-import { requireSession } from "@/lib/session";
+import { requireWorkspaceAdmin } from "@/lib/session";
 
 const SCOTIABANK_SMALL_BUSINESS =
 	"https://jm.scotiabank.com/small-business.html";
@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "BNS Online Banking" };
 export const instant = false;
 
 export default async function BankingPage() {
-	await requireSession();
+	await requireWorkspaceAdmin();
 
 	return (
 		<PageShell>
@@ -36,7 +36,7 @@ export default async function BankingPage() {
 			<PageShellContent>
 				<section className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-4">
 					<div className="overflow-hidden rounded-2xl border border-border bg-card">
-						<div className="border-b border-border bg-[linear-gradient(120deg,rgba(255,111,97,0.16),rgba(97,255,183,0.08))] px-6 py-8 sm:px-9">
+						<div className="border-b border-border bg-[linear-gradient(120deg,rgba(123,255,90,0.16),rgba(85,217,189,0.09))] px-6 py-8 sm:px-9">
 							<p className="text-sm font-medium text-muted-foreground">
 								Scotiabank Jamaica
 							</p>

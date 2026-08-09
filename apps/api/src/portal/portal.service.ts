@@ -14,10 +14,13 @@ import {
 	NotFoundException,
 	ServiceUnavailableException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import type { z } from "zod";
 import { OpenAiService } from "../ai/openai.service";
+import type { EnvironmentVariables } from "../config/env.validation";
 import { toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
+import { NotificationsService } from "../notifications/notifications.service";
 import type {
 	createServiceRequestInput,
 	portalAiChatInput,
@@ -34,6 +37,8 @@ export class PortalService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly ai: OpenAiService,
+		private readonly notifications: NotificationsService,
+		private readonly config: ConfigService<EnvironmentVariables, true>,
 	) {}
 
 	async list(companyId: string, actorId: string) {
@@ -65,7 +70,7 @@ export class PortalService {
 				);
 		}
 		const email = input.email.trim().toLowerCase();
-		return this.db.clientPortalAccess.upsert({
+		const access = await this.db.clientPortalAccess.upsert({
 			where: { email },
 			create: {
 				email,
@@ -80,6 +85,32 @@ export class PortalService {
 			},
 			select: { id: true, email: true, active: true },
 		});
+		const url = `${this.appUrl()}/accept-invite?type=client&token=${access.id}&email=${encodeURIComponent(email)}`;
+		const delivery = await this.notifications.sendEmail({
+			toEmail: email,
+			subject: "Your VAYU client portal invitation",
+			html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px"><p style="color:#3b7f34;font-weight:700">VAYU Client Portal</p><h1 style="font-size:24px">Your secure portal is ready</h1><p>View projects, invoices, service requests, meetings and updates in one place.</p><p><a href="${url}" style="display:inline-block;background:#65df55;color:#071207;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:700">Create account or sign in</a></p></div>`,
+		});
+		return { ...access, delivery };
+	}
+
+	async acceptInvite(token: string, user: PortalUser) {
+		const access = await this.db.clientPortalAccess.findUnique({
+			where: { id: token },
+		});
+		if (!access || !access.active)
+			throw new NotFoundException(
+				"This client invitation is no longer active.",
+			);
+		if (access.email !== user.email.trim().toLowerCase())
+			throw new ForbiddenException(
+				"Sign in with the email address that was invited.",
+			);
+		await this.db.clientPortalAccess.update({
+			where: { id: access.id },
+			data: { userId: user.id, lastAccessedAt: new Date() },
+		});
+		return { accepted: true };
 	}
 
 	async revoke(id: string, actorId: string) {
@@ -597,5 +628,13 @@ export class PortalService {
 			throw new ForbiddenException(
 				"Workspace administrator access is required.",
 			);
+	}
+
+	private appUrl(): string {
+		return (
+			(this.config.get("APP_URL", { infer: true }) ?? "http://localhost:3000")
+				.split(",")[0]
+				?.trim() ?? "http://localhost:3000"
+		);
 	}
 }

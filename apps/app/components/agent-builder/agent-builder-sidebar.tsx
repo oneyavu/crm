@@ -178,7 +178,10 @@ function TeamAgents({
 				<span className="shrink-0 font-mono">{agents.length}</span>
 			</Link>
 			{agents.map((agent) => {
-				const href = workspaceUrl(`/agents/${agent.id}`);
+				const href =
+					agent.source === "paperclip"
+						? workspaceUrl(`/paperclip/${agent.id.replace("paperclip:", "")}`)
+						: workspaceUrl(`/agents/${agent.id}`);
 				const active = pathname === href;
 				return (
 					<Link

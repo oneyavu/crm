@@ -1871,6 +1871,32 @@ model AppSetting {
   @@map("appSetting")
 }
 
+model PaperclipOutbox {
+  id          String   @id @default(cuid())
+  kind        String
+  targetId    String?
+  payload     Json
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  lastError   String?
+  createdById String
+  nextAttemptAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@map("paperclipOutbox")
+}
+
+model PaperclipSnapshot {
+  key       String   @id
+  payload   Json
+  fetchedAt DateTime @default(now())
+
+  @@map("paperclipSnapshot")
+}
+
 model Install {
   id String @id
 

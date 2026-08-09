@@ -27,7 +27,13 @@ export function TeamAgentsIndex({ initialAgents }: { initialAgents: Agents }) {
 					{rows.map((agent) => (
 						<Link
 							key={agent.id}
-							href={workspaceUrl(`/agents/${agent.id}`)}
+							href={
+								agent.source === "paperclip"
+									? workspaceUrl(
+											`/paperclip/${agent.id.replace("paperclip:", "")}`,
+										)
+									: workspaceUrl(`/agents/${agent.id}`)
+							}
 							transitionTypes={["nav-forward"]}
 							className="flex min-h-16 min-w-0 items-start gap-3 border-t px-4 py-4 outline-none first:border-t-0 hover:bg-muted/50 focus-visible:bg-muted/50 sm:items-center sm:gap-4 sm:px-5 sm:py-3"
 						>
@@ -40,7 +46,8 @@ export function TeamAgentsIndex({ initialAgents }: { initialAgents: Agents }) {
 										{agent.name}
 									</span>
 									<span className="shrink-0 text-muted-foreground text-xs">
-										{agent.status.toLowerCase()}
+										{agent.status.toLowerCase()} ·{" "}
+										{agent.source === "paperclip" ? "Paperclip" : "CRM"}
 									</span>
 								</span>
 								<span className="mt-1 block wrap-break-word text-muted-foreground text-xs sm:mt-0 sm:truncate">

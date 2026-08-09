@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { AuthHeading, AuthShell } from "@/components/auth-shell";
 import { getSession } from "@/lib/session";
 import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { CredentialsForm } from "./credentials-form";
 import { SocialSignIn } from "./social-sign-in";
 import { type SsoProvider, SsoSignIn } from "./sso-sign-in";
 
@@ -70,7 +71,9 @@ async function SignIn({
 
 	const providers = options?.providers ?? [];
 	const callbackPath =
-		typeof callbackURL === "string" && callbackURL.startsWith("/client")
+		typeof callbackURL === "string" &&
+		(callbackURL.startsWith("/client") ||
+			callbackURL.startsWith("/accept-invite"))
 			? callbackURL
 			: "/";
 
@@ -86,7 +89,7 @@ async function SignIn({
 				? configured
 				: [];
 
-	if (!showSso && social.length === 0) {
+	if (process.env.NEXT_PUBLIC_DISABLE_PASSWORD_AUTH === "true") {
 		return (
 			<>
 				<AuthHeading
@@ -110,6 +113,14 @@ async function SignIn({
 				title="Welcome back"
 				description="Sign in with your account to continue."
 			/>
+			<CredentialsForm callbackPath={callbackPath} />
+			{showSso || social.length > 0 ? (
+				<div className="flex items-center gap-3 text-xs text-muted-foreground">
+					<span className="h-px flex-1 bg-border" />
+					or continue with
+					<span className="h-px flex-1 bg-border" />
+				</div>
+			) : null}
 
 			{showSso ? (
 				<SsoSignIn providers={providers} callbackPath={callbackPath} />

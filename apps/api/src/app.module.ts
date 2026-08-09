@@ -3,8 +3,8 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { AuthModule as BetterAuthModule } from "@thallesp/nestjs-better-auth";
 import { ActivitiesModule } from "./activities/activities.module";
-import { AiModule } from "./ai/ai.module";
 import { AgentModule } from "./agent/agent.module";
+import { AiModule } from "./ai/ai.module";
 import { AuthModule } from "./auth/auth.module";
 import { BackfillModule } from "./backfill/backfill.module";
 import { AppCacheModule } from "./cache/cache.module";
@@ -28,8 +28,9 @@ import { logAuthRoute } from "./logging/request-logger.middleware";
 import { MailboxModule } from "./mailbox/mailbox.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { NotificationsModule } from "./notifications/notifications.module";
-import { ProjectsModule } from "./projects/projects.module";
+import { PaperclipModule } from "./paperclip/paperclip.module";
 import { PortalModule } from "./portal/portal.module";
+import { ProjectsModule } from "./projects/projects.module";
 import { RecordsModule } from "./records/records.module";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
@@ -77,6 +78,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		NotificationsModule,
 		ProjectsModule,
 		PortalModule,
+		PaperclipModule,
 		RecordsModule,
 		SyncModule,
 		SettingsModule,

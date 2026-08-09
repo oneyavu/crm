@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { PaperclipModule } from "../paperclip/paperclip.module";
 import { TrpcModule } from "../trpc/trpc.module";
 import { AgentAccessService } from "./agent-access.service";
 import { AgentDefinitionsService } from "./agent-definitions.service";
@@ -9,7 +10,7 @@ import { AgentsRouter } from "./agents.router";
 import { ResearchKeyService } from "./research-key.service";
 
 @Module({
-	imports: [TrpcModule],
+	imports: [TrpcModule, PaperclipModule],
 	providers: [
 		AgentAccessService,
 		AgentDefinitionsService,

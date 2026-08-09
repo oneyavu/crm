@@ -9,6 +9,7 @@ export const portalGrantInput = z.object({
 });
 
 export const portalAccessInput = z.object({ id: z.string().min(1) });
+export const portalInviteInput = z.object({ token: z.string().uuid() });
 
 export const createServiceRequestInput = z.object({
 	title: z.string().trim().min(3).max(160),

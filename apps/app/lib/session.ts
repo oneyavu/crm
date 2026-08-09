@@ -1,4 +1,4 @@
-import { auth, type Session } from "@crm/auth";
+import { auth, isWorkspaceAdmin, type Session, WORKSPACE_ID } from "@crm/auth";
 import { db } from "@crm/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -28,4 +28,19 @@ export const signInAccounts = cache(async (userId: string) =>
 
 export async function requireMailboxAccess(): Promise<Session> {
 	return requireSession();
+}
+
+export async function requireWorkspaceAdmin(): Promise<Session> {
+	const session = await requireSession();
+	const membership = await db.member.findUnique({
+		where: {
+			organizationId_userId: {
+				organizationId: WORKSPACE_ID,
+				userId: session.user.id,
+			},
+		},
+		select: { role: true },
+	});
+	if (!isWorkspaceAdmin(membership?.role as never)) redirect("/");
+	return session;
 }

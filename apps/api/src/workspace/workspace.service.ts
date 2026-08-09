@@ -16,9 +16,12 @@ import {
 	NotFoundException,
 	ServiceUnavailableException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { normalizeDomain } from "../companies/domain";
+import type { EnvironmentVariables } from "../config/env.validation";
 import { InjectDatabase } from "../database/database.constants";
+import { NotificationsService } from "../notifications/notifications.service";
 import {
 	countsByKey,
 	FACET_ALL,
@@ -27,6 +30,7 @@ import {
 	resolveOrderBy,
 } from "../trpc/list-input";
 import type {
+	InviteMemberInput,
 	MemberListInput,
 	SetMemberRoleInput,
 	UpdateWorkspaceInput,
@@ -41,6 +45,11 @@ export interface Workspace {
 	viewerRole: WorkspaceRole | null;
 	canRename: boolean;
 	canChangeRoles: boolean;
+	permissions: {
+		manageWorkspace: boolean;
+		accessBanking: boolean;
+		manageAgents: boolean;
+	};
 }
 
 export interface WorkspaceMember {
@@ -85,6 +94,8 @@ export class WorkspaceService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly agent: AgentTriggerService,
+		private readonly notifications: NotificationsService,
+		private readonly config: ConfigService<EnvironmentVariables, true>,
 	) {}
 
 	async get(userId: string): Promise<Workspace> {
@@ -112,6 +123,11 @@ export class WorkspaceService {
 			viewerRole: role,
 			canRename: canRenameWorkspace(role),
 			canChangeRoles: canChangeRole(role),
+			permissions: {
+				manageWorkspace: canChangeRole(role),
+				accessBanking: canChangeRole(role),
+				manageAgents: canChangeRole(role),
+			},
 		};
 	}
 
@@ -247,6 +263,131 @@ export class WorkspaceService {
 		return this.toMember(updated, userId);
 	}
 
+	async invitations(userId: string) {
+		await this.assertRoleManager(userId);
+		const rows = await this.db.invitation.findMany({
+			where: { organizationId: WORKSPACE_ID, status: "pending" },
+			orderBy: { createdAt: "desc" },
+			select: {
+				id: true,
+				email: true,
+				role: true,
+				createdAt: true,
+				expiresAt: true,
+			},
+		});
+		return rows.map((row) => ({
+			...row,
+			role: toRole(row.role ?? "member"),
+			createdAt: row.createdAt.toISOString(),
+			expiresAt: row.expiresAt.toISOString(),
+		}));
+	}
+
+	async inviteMember(userId: string, input: InviteMemberInput) {
+		await this.assertRoleManager(userId);
+		const email = input.email.trim().toLowerCase();
+		const existing = await this.db.member.findFirst({
+			where: { organizationId: WORKSPACE_ID, user: { email } },
+			select: { id: true },
+		});
+		if (existing)
+			throw new BadRequestException("That person already has CRM access.");
+
+		await this.db.invitation.updateMany({
+			where: { organizationId: WORKSPACE_ID, email, status: "pending" },
+			data: { status: "cancelled" },
+		});
+		const invitation = await this.db.invitation.create({
+			data: {
+				id: randomUUID(),
+				organizationId: WORKSPACE_ID,
+				email,
+				role: input.role,
+				status: "pending",
+				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+				inviterId: userId,
+			},
+			select: { id: true, email: true, role: true, expiresAt: true },
+		});
+		const url = `${this.appUrl()}/accept-invite?type=staff&token=${invitation.id}&email=${encodeURIComponent(email)}`;
+		const delivery = await this.notifications.sendEmail({
+			toEmail: email,
+			subject: "You are invited to VAYU CRM",
+			html: inviteHtml(
+				"Join the VAYU team",
+				`You have been invited as ${input.role}.`,
+				url,
+			),
+		});
+		return {
+			...invitation,
+			expiresAt: invitation.expiresAt.toISOString(),
+			delivery,
+		};
+	}
+
+	async revokeInvitation(userId: string, id: string) {
+		await this.assertRoleManager(userId);
+		const result = await this.db.invitation.updateMany({
+			where: { id, organizationId: WORKSPACE_ID, status: "pending" },
+			data: { status: "cancelled" },
+		});
+		if (!result.count) throw new NotFoundException("Invitation not found.");
+		return { id };
+	}
+
+	async acceptInvitation(user: { id: string; email: string }, id: string) {
+		const invitation = await this.db.invitation.findFirst({
+			where: { id, organizationId: WORKSPACE_ID, status: "pending" },
+			select: { id: true, email: true, role: true, expiresAt: true },
+		});
+		if (!invitation || invitation.expiresAt <= new Date())
+			throw new NotFoundException("This invitation is invalid or has expired.");
+		if (invitation.email !== user.email.trim().toLowerCase())
+			throw new ForbiddenException(
+				"Sign in with the email address that was invited.",
+			);
+		await this.db.$transaction([
+			this.db.member.upsert({
+				where: {
+					organizationId_userId: {
+						organizationId: WORKSPACE_ID,
+						userId: user.id,
+					},
+				},
+				create: {
+					id: randomUUID(),
+					organizationId: WORKSPACE_ID,
+					userId: user.id,
+					role: invitation.role ?? "member",
+					createdAt: new Date(),
+				},
+				update: { role: invitation.role ?? "member" },
+			}),
+			this.db.invitation.update({
+				where: { id },
+				data: { status: "accepted" },
+			}),
+		]);
+		return { accepted: true };
+	}
+
+	private async assertRoleManager(userId: string) {
+		if (!canChangeRole(await this.roleOf(userId)))
+			throw new ForbiddenException(
+				"Only an owner or admin can manage invitations.",
+			);
+	}
+
+	private appUrl(): string {
+		return (
+			(this.config.get("APP_URL", { infer: true }) ?? "http://localhost:3000")
+				.split(",")[0]
+				?.trim() ?? "http://localhost:3000"
+		);
+	}
+
 	private toMember(row: MemberRow, userId: string): WorkspaceMember {
 		return {
 			id: row.id,
@@ -310,3 +451,9 @@ export class WorkspaceService {
 		return member ? toRole(member.role) : null;
 	}
 }
+
+function inviteHtml(title: string, message: string, url: string): string {
+	return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px"><p style="color:#3b7f34;font-weight:700">VAYU CRM</p><h1 style="font-size:24px">${title}</h1><p>${message}</p><p><a href="${url}" style="display:inline-block;background:#65df55;color:#071207;padding:12px 18px;border-radius:6px;text-decoration:none;font-weight:700">Accept invitation</a></p><p style="color:#666;font-size:13px">This invitation expires in 7 days.</p></div>`;
+}
+
+import { randomUUID } from "node:crypto";

@@ -137,6 +137,18 @@ export class EnvironmentVariables {
 	AGENT_BRIDGE_SECRET?: string;
 
 	@IsOptional()
+	@IsUrl({ require_tld: false, require_protocol: true })
+	PAPERCLIP_URL?: string;
+
+	@IsOptional()
+	@IsString()
+	PAPERCLIP_API_TOKEN?: string;
+
+	@IsOptional()
+	@IsString()
+	PAPERCLIP_COMPANY_ID?: string;
+
+	@IsOptional()
 	@IsString()
 	CRM_TELEMETRY_DISABLED?: string;
 }

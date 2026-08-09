@@ -26,5 +26,13 @@ export const setMemberRoleInput = z.object({
 	role: z.enum(WORKSPACE_ROLES),
 });
 
+export const inviteMemberInput = z.object({
+	email: z.string().trim().email(),
+	role: z.enum(WORKSPACE_ROLES),
+});
+
+export const invitationInput = z.object({ id: z.string().uuid() });
+
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceInput>;
 export type SetMemberRoleInput = z.infer<typeof setMemberRoleInput>;
+export type InviteMemberInput = z.infer<typeof inviteMemberInput>;

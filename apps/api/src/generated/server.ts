@@ -27,13 +27,14 @@ import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInpu
 import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
-import { portalCompanyInput, portalGrantInput, portalAccessInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
+import { paperclipAgentInput, paperclipInstructionInput, paperclipApprovalInput, paperclipWorkflowInput } from "../paperclip/paperclip.contracts";
+import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordIdInput } from "../records/records.contracts";
 import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
 import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportConversationInput } from "../support/support.contracts";
-import { memberListInput, updateWorkspaceInput, setMemberRoleInput } from "../workspace/workspace.contracts";
+import { memberListInput, updateWorkspaceInput, setMemberRoleInput, inviteMemberInput, invitationInput } from "../workspace/workspace.contracts";
 import type { ActivitiesRouter } from "../activities/activities.router";
 import type { AgentsRouter } from "../agent/agents.router";
 import type { CatalogRouter } from "../catalog/catalog.router";
@@ -48,6 +49,7 @@ import type { GoogleRouter } from "../google/google.router";
 import type { InvoicesRouter } from "../invoices/invoices.router";
 import type { MicrosoftRouter } from "../microsoft/microsoft.router";
 import type { NotificationsRouter } from "../notifications/notifications.router";
+import type { PaperclipRouter } from "../paperclip/paperclip.router";
 import type { PortalRouter } from "../portal/portal.router";
 import type { ProjectsRouter } from "../projects/projects.router";
 import type { RecordsRouter } from "../records/records.router";
@@ -406,6 +408,24 @@ const appRouter = t.router({
     markAllRead: publicProcedure
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["markAllRead"]>>)
     }),
+  paperclip: t.router({
+    dashboard: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["dashboard"]>>),
+    agent: publicProcedure
+      .input(paperclipAgentInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["agent"]>>),
+    instruction: publicProcedure
+      .input(paperclipInstructionInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["instruction"]>>),
+    approval: publicProcedure
+      .input(paperclipApprovalInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["approval"]>>),
+    workflow: publicProcedure
+      .input(paperclipWorkflowInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["workflow"]>>),
+    sync: publicProcedure
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["sync"]>>)
+    }),
   portal: t.router({
     mine: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["mine"]>>),
@@ -418,6 +438,9 @@ const appRouter = t.router({
     revoke: publicProcedure
       .input(portalAccessInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["revoke"]>>),
+    acceptInvite: publicProcedure
+      .input(portalInviteInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["acceptInvite"]>>),
     createServiceRequest: publicProcedure
       .input(createServiceRequestInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["createServiceRequest"]>>),
@@ -550,7 +573,18 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["update"]>>),
     setMemberRole: publicProcedure
       .input(setMemberRoleInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["setMemberRole"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["setMemberRole"]>>),
+    invitations: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["invitations"]>>),
+    inviteMember: publicProcedure
+      .input(inviteMemberInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["inviteMember"]>>),
+    revokeInvitation: publicProcedure
+      .input(invitationInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["revokeInvitation"]>>),
+    acceptInvitation: publicProcedure
+      .input(invitationInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<WorkspaceRouter["acceptInvitation"]>>)
     })
 });
 

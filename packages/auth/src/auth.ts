@@ -12,7 +12,6 @@ import {
 	IDENTITY_SCOPES,
 	MICROSOFT_PROVIDER_ID,
 	MICROSOFT_SYNC_SCOPES,
-	SYNC_SCOPES,
 } from "./scopes";
 import { notifySignedIn } from "./signed-in";
 import {
@@ -62,7 +61,16 @@ export const auth = betterAuth({
 	}),
 
 	emailAndPassword: {
-		enabled: false,
+		enabled: true,
+		minPasswordLength: 10,
+		revokeSessionsOnPasswordReset: true,
+		sendResetPassword: async ({ user, url }) => {
+			await sendAuthEmail(
+				user.email,
+				"Reset your VAYU CRM password",
+				`<p>You requested a password reset for VAYU CRM.</p><p><a href="${escapeHtml(url)}">Choose a new password</a></p><p>This link expires shortly. If you did not request it, you can ignore this message.</p>`,
+			);
+		},
 	},
 
 	socialProviders,
@@ -130,13 +138,21 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				before: async (user) => {
-					const portalAccess = await db.clientPortalAccess.findFirst({
-						where: {
-							email: user.email.trim().toLowerCase(),
-							active: true,
-						},
-						select: { id: true },
-					});
+					const email = user.email.trim().toLowerCase();
+					const [portalAccess, staffInvite] = await Promise.all([
+						db.clientPortalAccess.findFirst({
+							where: { email, active: true },
+							select: { id: true },
+						}),
+						db.invitation.findFirst({
+							where: {
+								email,
+								status: "pending",
+								expiresAt: { gt: new Date() },
+							},
+							select: { id: true },
+						}),
+					]);
 
 					if (!hasSignInAllowList()) {
 						throw new APIError("FORBIDDEN", {
@@ -145,7 +161,7 @@ export const auth = betterAuth({
 						});
 					}
 
-					if (!isWorkspaceEmail(user.email) && !portalAccess) {
+					if (!isWorkspaceEmail(user.email) && !portalAccess && !staffInvite) {
 						const domain = primaryWorkspaceDomain();
 						throw new APIError("FORBIDDEN", {
 							message: domain
@@ -197,6 +213,45 @@ export const auth = betterAuth({
 		},
 	},
 });
+
+async function sendAuthEmail(to: string, subject: string, html: string) {
+	const apiKey = process.env.RESEND_API_KEY?.trim();
+	const from = process.env.NOTIFICATION_EMAIL_FROM?.trim();
+	if (!apiKey || !from) {
+		throw new APIError("SERVICE_UNAVAILABLE", {
+			message: "Password email delivery is not configured.",
+		});
+	}
+
+	const response = await fetch("https://api.resend.com/emails", {
+		method: "POST",
+		headers: {
+			Authorization: `Bearer ${apiKey}`,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ from, to: [to], subject, html }),
+		signal: AbortSignal.timeout(6000),
+	});
+	if (!response.ok) {
+		throw new APIError("SERVICE_UNAVAILABLE", {
+			message: "The password email could not be sent. Try again shortly.",
+		});
+	}
+}
+
+function escapeHtml(value: string): string {
+	return value.replace(
+		/[&<>"']/g,
+		(character) =>
+			({
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#039;",
+			})[character] ?? character,
+	);
+}
 
 export type Auth = typeof auth;
 export type Session = typeof auth.$Infer.Session;

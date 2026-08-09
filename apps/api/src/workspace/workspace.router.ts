@@ -11,6 +11,8 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
+	invitationInput,
+	inviteMemberInput,
 	memberListInput,
 	setMemberRoleInput,
 	updateWorkspaceInput,
@@ -51,5 +53,34 @@ export class WorkspaceRouter {
 		@Input() input: z.infer<typeof setMemberRoleInput>,
 	) {
 		return this.workspace.setMemberRole(ctx.user.id, input);
+	}
+
+	@Query()
+	async invitations(@Ctx() ctx: AuthedTrpcContext) {
+		return this.workspace.invitations(ctx.user.id);
+	}
+
+	@Mutation({ input: inviteMemberInput })
+	async inviteMember(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof inviteMemberInput>,
+	) {
+		return this.workspace.inviteMember(ctx.user.id, input);
+	}
+
+	@Mutation({ input: invitationInput })
+	async revokeInvitation(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("id") id: string,
+	) {
+		return this.workspace.revokeInvitation(ctx.user.id, id);
+	}
+
+	@Mutation({ input: invitationInput })
+	async acceptInvitation(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("id") id: string,
+	) {
+		return this.workspace.acceptInvitation(ctx.user, id);
 	}
 }

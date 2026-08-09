@@ -16,6 +16,7 @@ import {
 	portalAiChatInput,
 	portalCompanyInput,
 	portalGrantInput,
+	portalInviteInput,
 	serviceRequestReplyInput,
 	serviceRequestStatusInput,
 	submitInvoicePaymentInput,
@@ -51,6 +52,14 @@ export class PortalRouter {
 	@Mutation({ input: portalAccessInput })
 	async revoke(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
 		return this.portal.revoke(id, ctx.user.id);
+	}
+
+	@Mutation({ input: portalInviteInput })
+	async acceptInvite(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input("token") token: string,
+	) {
+		return this.portal.acceptInvite(token, ctx.user);
 	}
 
 	@Mutation({ input: createServiceRequestInput })

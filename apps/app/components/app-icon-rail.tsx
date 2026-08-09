@@ -26,6 +26,7 @@ import {
 	TooltipTrigger,
 } from "@crm/ui/components/tooltip";
 import { cn } from "@crm/ui/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
@@ -33,6 +34,7 @@ import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-si
 import { usePrefetchSection } from "@/components/crm/section-prefetch";
 import { useMobileNav } from "@/components/mobile-nav";
 import { VayuWordmark } from "@/components/vayu-brand";
+import { useTRPC } from "@/lib/trpc/client";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
 type RailItem = {
@@ -43,6 +45,7 @@ type RailItem = {
 	related?: string[];
 	external?: boolean;
 	nested?: boolean;
+	adminOnly?: boolean;
 };
 
 const ITEMS: RailItem[] = [
@@ -70,11 +73,18 @@ const ITEMS: RailItem[] = [
 		icon: Receipt,
 		match: "prefix",
 		nested: true,
+		adminOnly: true,
 	},
 	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
 	{ title: "Widget Studio", href: "/support", icon: Chat, match: "prefix" },
 	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
-	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
+	{
+		title: "Settings",
+		href: "/settings",
+		icon: Settings,
+		match: "prefix",
+		adminOnly: true,
+	},
 ];
 
 function isActive(item: RailItem, pathname: string): boolean {
@@ -239,16 +249,21 @@ export function AppIconRail() {
 	const workspaceUrl = useWorkspaceUrl();
 	const { open, setOpen } = useMobileNav();
 	const prefetchSection = usePrefetchSection();
+	const trpc = useTRPC();
+	const workspace = useQuery(trpc.workspace.get.queryOptions());
 
 	const items = useMemo(
 		() =>
-			ITEMS.map((item) => ({
+			ITEMS.filter(
+				(item) =>
+					!item.adminOnly || workspace.data?.permissions.manageWorkspace,
+			).map((item) => ({
 				...item,
 				section: item.href,
 				href: item.external ? item.href : workspaceUrl(item.href),
 				related: item.related?.map((path) => workspaceUrl(path)),
 			})),
-		[workspaceUrl],
+		[workspaceUrl, workspace.data?.permissions.manageWorkspace],
 	);
 	const inChat = items.some(
 		(item) => item.title === "Chat" && isActive(item, pathname),

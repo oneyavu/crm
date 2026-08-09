@@ -8,6 +8,7 @@ import {
 	UseMiddlewares,
 } from "nestjs-trpc";
 import type { z } from "zod";
+import { PaperclipService } from "../paperclip/paperclip.service";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import { AgentDefinitionsService } from "./agent-definitions.service";
@@ -28,11 +29,19 @@ export class AgentsRouter {
 		private readonly agents: AgentDefinitionsService,
 		@Inject(AgentRunsService)
 		private readonly runs: AgentRunsService,
+		@Inject(PaperclipService) private readonly paperclip: PaperclipService,
 	) {}
 
 	@Query()
 	async list(@Ctx() ctx: AuthedTrpcContext) {
-		return this.agents.list(ctx.user.id);
+		const [local, paperclip] = await Promise.all([
+			this.agents.list(ctx.user.id),
+			this.paperclip.teamAgents(),
+		]);
+		return [
+			...local.map((agent) => ({ ...agent, source: "crm" as const })),
+			...paperclip,
+		];
 	}
 
 	@Query({ input: agentIdInput })

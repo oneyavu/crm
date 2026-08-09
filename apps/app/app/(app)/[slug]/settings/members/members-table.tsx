@@ -14,8 +14,11 @@ import {
 	DropdownMenuTrigger,
 } from "@crm/ui/components/dropdown-menu";
 import { Icon } from "@crm/ui/components/icon";
+import { Input } from "@crm/ui/components/input";
+import { Label } from "@crm/ui/components/label";
 import { PersonAvatar } from "@crm/ui/components/person-avatar";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { ListSearch } from "@/components/data-table/list-search";
 import { useTableQuery } from "@/components/data-table/use-table-query";
@@ -142,6 +145,36 @@ export function MembersTable() {
 		...trpc.workspace.members.queryOptions(input),
 		placeholderData: (previous) => previous,
 	});
+	const invitations = useQuery({
+		...trpc.workspace.invitations.queryOptions(),
+		enabled: workspace.data?.canChangeRoles ?? false,
+	});
+	const [inviteEmail, setInviteEmail] = useState("");
+	const [inviteRole, setInviteRole] = useState<Role>("member");
+	const invite = useMutation(
+		trpc.workspace.inviteMember.mutationOptions({
+			onSuccess: async (result) => {
+				setInviteEmail("");
+				await cache.workspace();
+				await invitations.refetch();
+				toast.success(
+					result.delivery.sent
+						? "Invitation emailed."
+						: "Invitation created, but email delivery is not configured.",
+				);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const revokeInvite = useMutation(
+		trpc.workspace.revokeInvitation.mutationOptions({
+			onSuccess: async () => {
+				await invitations.refetch();
+				toast.success("Invitation revoked.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
 
 	const setRole = useMutation(
 		trpc.workspace.setMemberRole.mutationOptions({
@@ -168,21 +201,86 @@ export function MembersTable() {
 	];
 
 	return (
-		<DataTable
-			query={query}
-			search={<ListSearch placeholder="Search by name or email…" />}
-			columns={columns(
-				workspace.data?.canChangeRoles ?? false,
-				(member, role) => setRole.mutate({ memberId: member.id, role }),
-				setRole.isPending,
-			)}
-			rows={members.data?.rows ?? []}
-			total={members.data?.total ?? 0}
-			facetCounts={facetCounts}
-			facets={facets}
-			getRowId={(row) => row.id}
-			loading={members.isFetching}
-			empty="Nobody matches this view."
-		/>
+		<div className="flex min-h-0 flex-col gap-4">
+			{workspace.data?.canChangeRoles ? (
+				<form
+					className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-[1fr_160px_auto] md:items-end"
+					onSubmit={(event) => {
+						event.preventDefault();
+						invite.mutate({ email: inviteEmail, role: inviteRole });
+					}}
+				>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="staff-email">Invite staff by email</Label>
+						<Input
+							id="staff-email"
+							type="email"
+							placeholder="name@company.com"
+							value={inviteEmail}
+							onChange={(event) => setInviteEmail(event.target.value)}
+							required
+						/>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="staff-role">Role</Label>
+						<select
+							id="staff-role"
+							className="h-8 rounded-md border border-input bg-background px-2.5 text-xs"
+							value={inviteRole}
+							onChange={(event) => setInviteRole(event.target.value as Role)}
+						>
+							{(Object.keys(ROLE_LABEL) as Role[]).map((role) => (
+								<option key={role} value={role}>
+									{ROLE_LABEL[role]}
+								</option>
+							))}
+						</select>
+					</div>
+					<Button type="submit" disabled={invite.isPending}>
+						{invite.isPending ? "Sending…" : "Send invitation"}
+					</Button>
+				</form>
+			) : null}
+			{(invitations.data?.length ?? 0) > 0 ? (
+				<div className="rounded-lg border bg-card p-4">
+					<p className="mb-3 font-medium text-sm">Pending invitations</p>
+					<div className="flex flex-col gap-2">
+						{invitations.data?.map((item) => (
+							<div key={item.id} className="flex items-center gap-3 text-xs">
+								<span className="min-w-0 flex-1 truncate">{item.email}</span>
+								<span className="text-muted-foreground">
+									{ROLE_LABEL[item.role]}
+								</span>
+								<Button
+									type="button"
+									size="sm"
+									variant="ghost"
+									disabled={revokeInvite.isPending}
+									onClick={() => revokeInvite.mutate({ id: item.id })}
+								>
+									Revoke
+								</Button>
+							</div>
+						))}
+					</div>
+				</div>
+			) : null}
+			<DataTable
+				query={query}
+				search={<ListSearch placeholder="Search by name or email…" />}
+				columns={columns(
+					workspace.data?.canChangeRoles ?? false,
+					(member, role) => setRole.mutate({ memberId: member.id, role }),
+					setRole.isPending,
+				)}
+				rows={members.data?.rows ?? []}
+				total={members.data?.total ?? 0}
+				facetCounts={facetCounts}
+				facets={facets}
+				getRowId={(row) => row.id}
+				loading={members.isFetching}
+				empty="Nobody matches this view."
+			/>
+		</div>
 	);
 }
