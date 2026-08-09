@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
 import { ProjectsWorkspace } from "./projects-workspace";
 
 export const metadata: Metadata = { title: "Projects" };
+export const instant = false;
 
 export default async function ProjectsPage() {
 	await requireSession();

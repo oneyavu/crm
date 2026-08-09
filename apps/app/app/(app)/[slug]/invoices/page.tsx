@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
 import { InvoicesWorkspace } from "./invoices-workspace";
 
 export const metadata: Metadata = { title: "Invoices" };
+export const instant = false;
 
 export default async function InvoicesPage() {
 	await requireSession();

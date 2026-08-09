@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/session";
 import { ProjectBoard } from "./project-board";
 
+export const instant = false;
+
 export default async function ProjectPage({
 	params,
 }: {

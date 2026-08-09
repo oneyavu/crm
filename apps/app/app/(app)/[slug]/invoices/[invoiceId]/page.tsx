@@ -1,6 +1,8 @@
 import { requireSession } from "@/lib/session";
 import { InvoiceDetail } from "./invoice-detail";
 
+export const instant = false;
+
 export default async function InvoicePage({
 	params,
 }: {

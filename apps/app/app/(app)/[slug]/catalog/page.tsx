@@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
 import { CatalogLibrary } from "./catalog-library";
 
 export const metadata: Metadata = { title: "VAYU Catalog" };
+export const instant = false;
 
 export default async function CatalogPage() {
 	await requireSession();
