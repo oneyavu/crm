@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { requireWorkspaceAdmin } from "@/lib/session";
 import { SettingsSidebar, SettingsSidebarFallback } from "./settings-sidebar";
 
+export const instant = false;
+
 export default async function SettingsLayout({
 	children,
 }: Readonly<{
