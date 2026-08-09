@@ -15,6 +15,7 @@ import type {
 	documentInput,
 	expenseCategoryInput,
 	financialAccountInput,
+	forecastInput,
 	messageTemplateInput,
 	metricInput,
 	pricingInput,
@@ -28,7 +29,8 @@ export class OperationsService {
 		private readonly ai: OpenAiService,
 	) {}
 
-	async overview() {
+	async overview(actorId: string) {
+		await this.assertAdmin(actorId);
 		const [
 			expense,
 			revenue,
@@ -78,7 +80,7 @@ export class OperationsService {
 		};
 	}
 
-	expenseCategories(): Promise<
+	async expenseCategories(actorId: string): Promise<
 		Array<{
 			id: string;
 			name: string;
@@ -90,11 +92,12 @@ export class OperationsService {
 			updatedAt: Date;
 		}>
 	> {
+		await this.assertAdmin(actorId);
 		return this.db.expenseCategory.findMany({
 			orderBy: [{ active: "desc" }, { name: "asc" }],
 		});
 	}
-	templates(): Promise<
+	async templates(actorId: string): Promise<
 		Array<{
 			id: string;
 			kind: "EMAIL" | "SUGGESTED_REPLY";
@@ -109,11 +112,13 @@ export class OperationsService {
 			updatedAt: Date;
 		}>
 	> {
+		await this.assertAdmin(actorId);
 		return this.db.messageTemplate.findMany({
 			orderBy: [{ kind: "asc" }, { name: "asc" }],
 		});
 	}
-	async financialAccounts() {
+	async financialAccounts(actorId: string) {
+		await this.assertAdmin(actorId);
 		const rows = await this.db.financialAccount.findMany({
 			orderBy: [{ active: "desc" }, { name: "asc" }],
 		});
@@ -123,7 +128,8 @@ export class OperationsService {
 			currentBalanceCents: toCents(currentBalance) ?? 0,
 		}));
 	}
-	async staff() {
+	async staff(actorId: string) {
+		await this.assertAdmin(actorId);
 		const rows = await this.db.staffProfile.findMany({
 			orderBy: [{ active: "desc" }, { name: "asc" }],
 			include: {
@@ -146,7 +152,8 @@ export class OperationsService {
 			})),
 		}));
 	}
-	async pricing() {
+	async pricing(actorId: string) {
+		await this.assertAdmin(actorId);
 		const rows = await this.db.catalogItem.findMany({
 			where: { active: true },
 			orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -171,7 +178,7 @@ export class OperationsService {
 				: null,
 		}));
 	}
-	documents(): Promise<
+	async documents(actorId: string): Promise<
 		Array<{
 			id: string;
 			kind:
@@ -202,6 +209,7 @@ export class OperationsService {
 			project: { id: string; name: string } | null;
 		}>
 	> {
+		await this.assertAdmin(actorId);
 		return this.db.businessDocument.findMany({
 			orderBy: { updatedAt: "desc" },
 			select: {
@@ -221,7 +229,8 @@ export class OperationsService {
 			},
 		});
 	}
-	async document(id: string) {
+	async document(id: string, actorId: string) {
+		await this.assertAdmin(actorId);
 		const row = await this.db.businessDocument.findUnique({ where: { id } });
 		if (!row) throw new NotFoundException("Document not found.");
 		return {
@@ -230,7 +239,8 @@ export class OperationsService {
 			content: undefined,
 		};
 	}
-	async documentContent(id: string) {
+	async documentContent(id: string, actorId: string) {
+		await this.assertAdmin(actorId);
 		const row = await this.db.businessDocument.findUnique({
 			where: { id },
 			select: { fileName: true, mediaType: true, content: true },
@@ -447,7 +457,7 @@ export class OperationsService {
 	}
 	async analyzeDeal(input: z.infer<typeof dealAnalysisInput>, actorId: string) {
 		await this.assertAdmin(actorId);
-		const catalog = await this.pricing();
+		const catalog = await this.pricing(actorId);
 		const catalogContext = catalog
 			.map((item) => ({
 				code: item.code,
@@ -488,6 +498,50 @@ export class OperationsService {
 			{ id: record.id, fileNames: input.files.map((file) => file.name) },
 		);
 		return { id: record.id, analysis };
+	}
+
+	async forecast(input: z.infer<typeof forecastInput>, actorId: string) {
+		await this.assertAdmin(actorId);
+		const current = await this.overview(actorId);
+		const monthly: Array<{
+			month: number; leads: number; customers: number; revenueCents: number;
+			deliveryCostCents: number; acquisitionCostCents: number;
+			operatingCostCents: number; profitCents: number; cashCents: number;
+		}> = [];
+		let cash = input.cashOnHandCents;
+		let recurringRevenue = Math.max(0, Math.round(current.collectedCents / 12));
+		let cumulativeProfit = 0;
+		for (let month = 1; month <= input.months; month += 1) {
+			const leads = input.monthlyLeads * (1 + input.monthlyGrowthPct / 100) ** (month - 1);
+			const customers = leads * (input.conversionPct / 100);
+			const newRevenue = Math.round(customers * input.averageDealCents);
+			recurringRevenue = Math.max(0, Math.round(recurringRevenue * (1 - input.monthlyChurnPct / 100)));
+			const revenue = newRevenue + recurringRevenue;
+			const deliveryCost = Math.round(revenue * (1 - input.grossMarginPct / 100));
+			const acquisitionCost = Math.round(customers * input.acquisitionCostCents);
+			const operatingCost = input.fixedOperatingCostCents + input.payrollCostCents;
+			const profit = revenue - deliveryCost - acquisitionCost - operatingCost;
+			cash += profit;
+			cumulativeProfit += profit;
+			monthly.push({ month, leads: Math.round(leads), customers: Number(customers.toFixed(2)), revenueCents: revenue, deliveryCostCents: deliveryCost, acquisitionCostCents: acquisitionCost, operatingCostCents: operatingCost, profitCents: profit, cashCents: cash });
+			recurringRevenue += Math.round(newRevenue * 0.15);
+		}
+		const breakEven = monthly.find((row) => row.profitCents >= 0)?.month ?? null;
+		const cacPaybackMonths = input.averageDealCents > 0 && input.grossMarginPct > 0
+			? input.acquisitionCostCents / (input.averageDealCents * (input.grossMarginPct / 100))
+			: null;
+		return {
+			current,
+			monthly,
+			summary: {
+				projectedRevenueCents: monthly.reduce((sum, row) => sum + row.revenueCents, 0),
+				projectedProfitCents: cumulativeProfit,
+				endingCashCents: cash,
+				breakEvenMonth: breakEven,
+				cacPaybackMonths: cacPaybackMonths == null ? null : Number(cacPaybackMonths.toFixed(2)),
+				minimumCashCents: Math.min(input.cashOnHandCents, ...monthly.map((row) => row.cashCents)),
+			},
+		};
 	}
 
 	async remove(

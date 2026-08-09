@@ -172,7 +172,7 @@ export function ClientPortal({ userName }: { userName: string }) {
 						{data?.ai.configured ? (
 							<span className="hidden items-center gap-2 text-xs text-white/55 sm:flex">
 								<span className="size-2 rounded-full bg-[#71ed75]" />
-								GPT-5.5 connected
+								AI assistance available
 							</span>
 						) : null}
 						<span className="hidden text-sm text-white/50 md:block">

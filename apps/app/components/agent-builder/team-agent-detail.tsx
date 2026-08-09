@@ -758,7 +758,7 @@ function ExpandedRun({ run }: { run: RunRow }) {
 					label="Initiated by"
 					value={run.initiatedBy?.name ?? "Eve scheduler"}
 				/>
-				<RunMeta label="Model" value={run.modelId ?? "OpenAI GPT-5.5"} />
+				<RunMeta label="Runtime" value={run.modelId ?? "Managed AI"} />
 				<RunMeta label="Version" value={String(run.version.number)} last />
 			</div>
 

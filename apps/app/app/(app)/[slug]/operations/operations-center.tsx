@@ -163,6 +163,7 @@ export function OperationsCenter() {
 					<TabsTrigger value="knowledge">Templates</TabsTrigger>
 					<TabsTrigger value="compliance">Business admin</TabsTrigger>
 					<TabsTrigger value="deal">Deal calculator</TabsTrigger>
+					<TabsTrigger value="forecast">Forecasting</TabsTrigger>
 				</TabsList>
 				<TabsContent value="finance">
 					<Panel
@@ -474,6 +475,9 @@ export function OperationsCenter() {
 
 				<TabsContent value="deal">
 					<DealCalculator />
+				</TabsContent>
+				<TabsContent value="forecast">
+					<ForecastCalculator />
 				</TabsContent>
 			</Tabs>
 			<OperationsForm
@@ -1052,6 +1056,66 @@ function DealCalculator() {
 			</div>
 		</Panel>
 	);
+}
+
+function ForecastCalculator() {
+	const trpc = useTRPC();
+	const [values, setValues] = useState({
+		months: "12", monthlyLeads: "20", conversionPct: "15",
+		averageDeal: "250000", grossMarginPct: "45", monthlyGrowthPct: "5",
+		monthlyChurnPct: "2", acquisitionCost: "25000",
+		fixedOperatingCost: "500000", payrollCost: "1000000", cashOnHand: "0",
+	});
+	const [result, setResult] = useState<Awaited<ReturnType<typeof forecastPlaceholder>> | null>(null);
+	const forecast = useMutation(
+		trpc.operations.forecast.mutationOptions({
+			onSuccess: (data) => setResult(data as never),
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const set = (key: keyof typeof values) => (event: React.ChangeEvent<HTMLInputElement>) =>
+		setValues((current) => ({ ...current, [key]: event.target.value }));
+	const money = (value: string) => Math.round((Number(value) || 0) * 100);
+	return (
+		<Panel title="Financial forecasting & business optimization" description="Admin-only deterministic projections. Calculations run in code rather than consuming AI tokens.">
+			<div className="grid gap-5 xl:grid-cols-[.75fr_1.25fr]">
+				<div className="grid grid-cols-2 gap-3">
+					{([
+						["months", "Forecast months"], ["monthlyLeads", "Monthly leads"],
+						["conversionPct", "Conversion %"], ["averageDeal", "Average deal (JMD)"],
+						["grossMarginPct", "Gross margin %"], ["monthlyGrowthPct", "Monthly growth %"],
+						["monthlyChurnPct", "Monthly churn %"], ["acquisitionCost", "CAC per client (JMD)"],
+						["fixedOperatingCost", "Fixed monthly cost (JMD)"], ["payrollCost", "Monthly payroll (JMD)"],
+						["cashOnHand", "Cash on hand (JMD)"],
+					] as Array<[keyof typeof values, string]>).map(([key, title]) => (
+						<Field key={key} label={title}><Input inputMode="decimal" value={values[key]} onChange={set(key)} /></Field>
+					))}
+					<Button className="col-span-2" disabled={forecast.isPending} onClick={() => forecast.mutate({
+						months: Math.max(1, Math.round(Number(values.months) || 12)),
+						monthlyLeads: Number(values.monthlyLeads) || 0,
+						conversionPct: Number(values.conversionPct) || 0,
+						averageDealCents: money(values.averageDeal), grossMarginPct: Number(values.grossMarginPct) || 0,
+						monthlyGrowthPct: Number(values.monthlyGrowthPct) || 0, monthlyChurnPct: Number(values.monthlyChurnPct) || 0,
+						acquisitionCostCents: money(values.acquisitionCost), fixedOperatingCostCents: money(values.fixedOperatingCost),
+						payrollCostCents: money(values.payrollCost), cashOnHandCents: money(values.cashOnHand),
+					})}>{forecast.isPending ? "Calculating…" : "Run forecast"}</Button>
+				</div>
+				<div className="space-y-3">
+					<div className="grid gap-3 sm:grid-cols-2">
+						<Metric label="Projected revenue" value={formatMoney(result?.summary.projectedRevenueCents ?? 0, "JMD")} detail="Across the selected forecast horizon" />
+						<Metric label="Projected profit" value={formatMoney(result?.summary.projectedProfitCents ?? 0, "JMD")} detail="After delivery, acquisition and operating costs" good={(result?.summary.projectedProfitCents ?? 0) >= 0} />
+						<Metric label="Ending cash" value={formatMoney(result?.summary.endingCashCents ?? 0, "JMD")} detail="Projected closing cash position" good={(result?.summary.endingCashCents ?? 0) >= 0} />
+						<Metric label="Break-even" value={result?.summary.breakEvenMonth ? `Month ${result.summary.breakEvenMonth}` : "Not reached"} detail={result?.summary.cacPaybackMonths == null ? "CAC payback unavailable" : `${result.summary.cacPaybackMonths} month CAC payback`} />
+					</div>
+					<div className="max-h-96 overflow-auto rounded-xl border"><table className="w-full text-xs"><thead><tr className="border-b"><th className="p-2 text-left">Month</th><th>Revenue</th><th>Profit</th><th>Cash</th></tr></thead><tbody>{(result?.monthly ?? []).map((row) => <tr key={row.month} className="border-b"><td className="p-2">{row.month}</td><td className="text-right">{formatMoney(row.revenueCents,"JMD")}</td><td className="text-right">{formatMoney(row.profitCents,"JMD")}</td><td className="pr-2 text-right">{formatMoney(row.cashCents,"JMD")}</td></tr>)}</tbody></table></div>
+				</div>
+			</div>
+		</Panel>
+	);
+}
+
+async function forecastPlaceholder() {
+	return { summary: { projectedRevenueCents: 0, projectedProfitCents: 0, endingCashCents: 0, breakEvenMonth: null as number | null, cacPaybackMonths: null as number | null }, monthly: [] as Array<{ month: number; revenueCents: number; profitCents: number; cashCents: number }> };
 }
 
 function PricingDialog({

@@ -3,7 +3,6 @@
 import Chat from "@carbon/icons-react/es/Chat";
 import CheckmarkFilled from "@carbon/icons-react/es/CheckmarkFilled";
 import Copy from "@carbon/icons-react/es/Copy";
-import Headphones from "@carbon/icons-react/es/Headphones";
 import Send from "@carbon/icons-react/es/Send";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
@@ -122,9 +121,8 @@ export function WidgetStudio() {
 	const ai = conversations.filter(
 		(conversation) => conversation.status === "AI_ACTIVE",
 	).length;
-	const embedCode = widget.data?.publicKey
-		? `<script async src="https://asina.onevayu.com/widget.js" data-vayu-widget="${widget.data.publicKey}" data-position="left" data-vapi-public-key="2ecd9a64-72b1-408e-a895-ff2b19655746" data-vapi-assistant-id="36382f71-3794-4f84-a957-3dd8248154ee"></script>`
-		: "Save the widget once to generate embed code.";
+	const embedCode =
+		"Public website embeds are disabled. Client support remains available securely inside the authenticated portal.";
 
 	if (widget.isLoading || !draft)
 		return (
@@ -158,21 +156,15 @@ export function WidgetStudio() {
 
 	return (
 		<div className="space-y-5">
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 				<StudioMetric
 					icon={<VayuMark className="size-6" />}
-					label="GPT-5.5"
-					value="Direct OpenAI"
+					label="Portal AI"
+					value="Private workspace"
 					good
 				/>
 				<StudioMetric
-					icon={<Headphones />}
-					label="Vapi voice"
-					value="Talk With Us"
-					good
-				/>
-				<StudioMetric
-					icon={<Headphones />}
+					icon={<Chat />}
 					label="Live support"
 					value={waiting ? `${waiting} waiting` : "Online"}
 					good={!waiting}
@@ -239,7 +231,7 @@ export function WidgetStudio() {
 							</Field>
 						</div>
 						<Toggle
-							label="AI assistant (GPT-5.5)"
+							label="AI assistant"
 							checked={draft.aiEnabled}
 							onChange={(value) => setDraft({ ...draft, aiEnabled: value })}
 						/>
@@ -264,7 +256,7 @@ export function WidgetStudio() {
 								}
 							/>
 						</Field>
-						<Field label="Knowledge for GPT-5.5">
+						<Field label="Assistant knowledge">
 							<Textarea
 								rows={6}
 								value={draft.knowledgeText}
@@ -561,7 +553,7 @@ function WidgetPreview({ draft }: { draft: Draft }) {
 				<div>
 					<p className="text-sm font-medium">{draft.name}</p>
 					<p className="text-[10px] text-white/40">
-						GPT-5.5 · Live support available
+						Secure AI · Live support available
 					</p>
 				</div>
 			</div>

@@ -13,6 +13,7 @@ import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
 	clientAccountInput,
 	clientContactInput,
+	clientContactDeleteInput,
 	clientIdInput,
 	clientListInput,
 } from "./clients.contracts";
@@ -47,5 +48,11 @@ export class ClientsRouter {
 		@Input() input: z.infer<typeof clientContactInput>,
 	) {
 		return this.clients.addContact(input, ctx.user.id);
+	}
+	@Mutation({ input: clientContactDeleteInput }) deleteContact(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof clientContactDeleteInput>,
+	) {
+		return this.clients.deleteContact(input, ctx.user.id);
 	}
 }

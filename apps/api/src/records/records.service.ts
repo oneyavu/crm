@@ -1,5 +1,6 @@
+import { isWorkspaceAdmin } from "@crm/auth";
 import { type Db, type Prisma, Prisma as PrismaNamespace } from "@crm/db";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { blankToNull, decimalFromCents, toCents } from "../crm/values";
 import { InjectDatabase } from "../database/database.constants";
 import {
@@ -29,7 +30,8 @@ const SORTABLE: Record<
 export class RecordsService {
 	constructor(@InjectDatabase() private readonly db: Db) {}
 
-	async list(input: RecordListInput) {
+	async list(input: RecordListInput, actorId: string) {
+		await this.assertAdmin(actorId);
 		const term = input.q.trim();
 		const search: Prisma.BusinessRecordWhereInput = term
 			? {
@@ -79,6 +81,7 @@ export class RecordsService {
 	}
 
 	async create(input: RecordCreateInput, actorId: string) {
+		await this.assertAdmin(actorId);
 		const record = await this.db.businessRecord.create({
 			data: {
 				...data(input),
@@ -97,6 +100,7 @@ export class RecordsService {
 	}
 
 	async update(input: RecordUpdateInput, actorId: string) {
+		await this.assertAdmin(actorId);
 		const before = await this.db.businessRecord.findUnique({
 			where: { id: input.id },
 		});
@@ -123,6 +127,7 @@ export class RecordsService {
 	}
 
 	async delete(id: string, actorId: string) {
+		await this.assertAdmin(actorId);
 		try {
 			const record = await this.db.businessRecord.delete({
 				where: { id },
@@ -167,6 +172,15 @@ export class RecordsService {
 				after: after == null ? undefined : json(after),
 			},
 		});
+	}
+
+	private async assertAdmin(userId: string) {
+		const member = await this.db.member.findFirst({
+			where: { userId },
+			select: { role: true },
+		});
+		if (!isWorkspaceAdmin(member?.role as never))
+			throw new ForbiddenException("Workspace administrator access is required.");
 	}
 }
 

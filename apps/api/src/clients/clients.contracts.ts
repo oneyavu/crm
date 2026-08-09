@@ -24,3 +24,7 @@ export const clientContactInput = z.object({
 	primary: z.boolean().default(false),
 	sendInvite: z.boolean().default(false),
 });
+export const clientContactDeleteInput = z.object({
+	companyId: z.string().min(1),
+	contactId: z.string().min(1),
+});

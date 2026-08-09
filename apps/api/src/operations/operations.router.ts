@@ -17,6 +17,7 @@ import {
 	entityIdInput,
 	expenseCategoryInput,
 	financialAccountInput,
+	forecastInput,
 	messageTemplateInput,
 	metricInput,
 	pricingInput,
@@ -31,31 +32,31 @@ export class OperationsRouter {
 		@Inject(OperationsService) private readonly operations: OperationsService,
 	) {}
 
-	@Query() overview() {
-		return this.operations.overview();
+	@Query() overview(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.overview(ctx.user.id);
 	}
-	@Query() expenseCategories() {
-		return this.operations.expenseCategories();
+	@Query() expenseCategories(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.expenseCategories(ctx.user.id);
 	}
-	@Query() templates() {
-		return this.operations.templates();
+	@Query() templates(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.templates(ctx.user.id);
 	}
-	@Query() financialAccounts() {
-		return this.operations.financialAccounts();
+	@Query() financialAccounts(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.financialAccounts(ctx.user.id);
 	}
-	@Query() staff() {
-		return this.operations.staff();
+	@Query() staff(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.staff(ctx.user.id);
 	}
-	@Query() pricing() {
-		return this.operations.pricing();
+	@Query() pricing(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.pricing(ctx.user.id);
 	}
-	@Query() documents() {
-		return this.operations.documents();
+	@Query() documents(@Ctx() ctx: AuthedTrpcContext) {
+		return this.operations.documents(ctx.user.id);
 	}
 
 	@Query({ input: entityIdInput })
-	document(@Input("id") id: string) {
-		return this.operations.document(id);
+	document(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.operations.document(id, ctx.user.id);
 	}
 
 	@Mutation({ input: expenseCategoryInput })
@@ -120,6 +121,14 @@ export class OperationsRouter {
 		@Input() input: z.infer<typeof dealAnalysisInput>,
 	) {
 		return this.operations.analyzeDeal(input, ctx.user.id);
+	}
+
+	@Mutation({ input: forecastInput })
+	forecast(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof forecastInput>,
+	) {
+		return this.operations.forecast(input, ctx.user.id);
 	}
 
 	@Mutation({ input: entityIdInput })

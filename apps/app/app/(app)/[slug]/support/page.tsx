@@ -21,7 +21,7 @@ export default async function SupportPage() {
 				<PageShellHeading>
 					<PageShellTitle>Widget Studio</PageShellTitle>
 					<PageShellDescription>
-						Build, preview and publish GPT-5.5 client support anywhere.
+						Manage secure portal conversations and live client support.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>

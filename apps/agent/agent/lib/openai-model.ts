@@ -1,8 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 
-export const OPENAI_MODEL_ID = "openai/gpt-5.5";
-export const OPENAI_CONTEXT_WINDOW_TOKENS = 1_050_000;
+export const OPENAI_MODEL_ID = "openai/gpt-5-nano";
+export const OPENAI_CONTEXT_WINDOW_TOKENS = 400_000;
 
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

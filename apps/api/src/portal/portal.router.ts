@@ -55,6 +55,11 @@ export class PortalRouter {
 		return this.portal.revoke(id, ctx.user.id);
 	}
 
+	@Mutation({ input: portalAccessInput })
+	async removeAccess(@Ctx() ctx: AuthedTrpcContext, @Input("id") id: string) {
+		return this.portal.removeAccess(id, ctx.user.id);
+	}
+
 	@Mutation({ input: portalInviteInput })
 	async acceptInvite(
 		@Ctx() ctx: AuthedTrpcContext,

@@ -26,8 +26,11 @@ export class RecordsRouter {
 	) {}
 
 	@Query({ input: recordListInput })
-	async list(@Input() input: z.infer<typeof recordListInput>) {
-		return this.records.list(input);
+	async list(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof recordListInput>,
+	) {
+		return this.records.list(input, ctx.user.id);
 	}
 
 	@Mutation({ input: recordCreateInput })

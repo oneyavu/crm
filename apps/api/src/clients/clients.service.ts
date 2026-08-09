@@ -13,6 +13,7 @@ import { PortalService } from "../portal/portal.service";
 import type {
 	clientAccountInput,
 	clientContactInput,
+	clientContactDeleteInput,
 } from "./clients.contracts";
 
 @Injectable()
@@ -341,6 +342,46 @@ export class ClientsService {
 			invitation,
 			approvalRequired: input.sendInvite && !access.admin,
 		};
+	}
+
+	async deleteContact(
+		input: z.infer<typeof clientContactDeleteInput>,
+		actorId: string,
+	) {
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin)
+			throw new ForbiddenException("Administrator approval is required to delete a client contact.");
+		const contact = await this.db.contact.findFirst({
+			where: { id: input.contactId, companyId: input.companyId },
+			select: { id: true, email: true, firstName: true, lastName: true },
+		});
+		if (!contact) throw new NotFoundException("Client contact not found.");
+		await this.db.$transaction(async (tx) => {
+			await tx.clientPortalAccess.deleteMany({
+				where: {
+					OR: [
+						{ contactId: contact.id },
+						...(contact.email ? [{ email: contact.email }] : []),
+					],
+				},
+			});
+			await tx.company.updateMany({
+				where: { id: input.companyId, primaryContactId: contact.id },
+				data: { primaryContactId: null },
+			});
+			await tx.contact.delete({ where: { id: contact.id } });
+			await tx.auditEntry.create({
+				data: {
+					entityType: "Contact",
+					entityId: contact.id,
+					action: "DELETE_CLIENT_CONTACT",
+					actorId,
+					summary: `Deleted client contact ${contact.firstName} ${contact.lastName ?? ""}`.trim(),
+					before: { companyId: input.companyId, email: contact.email },
+				},
+			});
+		});
+		return { id: contact.id };
 	}
 
 	private validateClientEmail(email: string, companyDomain: string | null) {

@@ -10,11 +10,11 @@ export interface CatalogModel {
 
 const OPENAI_MODELS: CatalogModel[] = [
 	{
-		id: "openai/gpt-5.5",
-		name: "GPT-5.5",
+		id: "openai/gpt-5-nano",
+		name: "Cost-first AI",
 		provider: "OpenAI",
-		contextWindowTokens: 1_050_000,
-		pricing: { input: 5 / 1_000_000, output: 30 / 1_000_000 },
+		contextWindowTokens: 400_000,
+		pricing: { input: 0.05 / 1_000_000, output: 0.4 / 1_000_000 },
 	},
 ];
 

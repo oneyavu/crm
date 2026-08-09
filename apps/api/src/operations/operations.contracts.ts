@@ -149,3 +149,17 @@ export const dealAnalysisInput = z.object({
 		)
 		.max(5),
 });
+
+export const forecastInput = z.object({
+	months: z.number().int().min(1).max(60).default(12),
+	monthlyLeads: z.number().min(0),
+	conversionPct: z.number().min(0).max(100),
+	averageDealCents: z.number().int().min(0),
+	grossMarginPct: z.number().min(0).max(100),
+	monthlyGrowthPct: z.number().min(-100).max(500),
+	monthlyChurnPct: z.number().min(0).max(100),
+	acquisitionCostCents: z.number().int().min(0),
+	fixedOperatingCostCents: z.number().int().min(0),
+	payrollCostCents: z.number().int().min(0),
+	cashOnHandCents: z.number().int(),
+});

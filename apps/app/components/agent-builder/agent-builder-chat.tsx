@@ -1012,9 +1012,9 @@ function BuilderFailureCard({
 }) {
 	const message =
 		failure.kind === "rate-limit"
-			? "OpenAI rate-limited GPT-5.5 before it could start. Try again in a moment or review the API project limits."
+			? "The AI service was rate-limited before it could start. Try again in a moment or review the service limits."
 			: failure.kind === "restricted"
-				? "This OpenAI API project does not currently have access to GPT-5.5. Review its model access and billing, then try again."
+				? "This AI service is not currently available. Review its access and billing, then try again."
 				: failure.kind === "credits"
 					? "The OpenAI API project has reached its billing or usage limit. Update it, then try again."
 					: "The builder could not finish this request. Try again.";

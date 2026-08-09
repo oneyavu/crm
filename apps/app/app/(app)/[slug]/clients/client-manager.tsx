@@ -2,6 +2,7 @@
 
 import Add from "@carbon/icons-react/es/Add";
 import Email from "@carbon/icons-react/es/Email";
+import TrashCan from "@carbon/icons-react/es/TrashCan";
 import { Badge } from "@crm/ui/components/badge";
 import { Button } from "@crm/ui/components/button";
 import {
@@ -37,14 +38,16 @@ export function ClientManager() {
 		contactId: string | null;
 		email: string;
 	} | null>(null);
-	const clients = useQuery(trpc.clients.list.queryOptions({ q }));
+	const clients = useQuery(
+		trpc.clients.list.queryOptions({ q }, { refetchInterval: 5_000 }),
+	);
 	useEffect(() => {
 		if (!selectedId && clients.data?.[0]) setSelectedId(clients.data[0].id);
 	}, [clients.data, selectedId]);
 	const detail = useQuery(
 		trpc.clients.detail.queryOptions(
 			{ id: selectedId || "pending" },
-			{ enabled: Boolean(selectedId) },
+			{ enabled: Boolean(selectedId), refetchInterval: 5_000 },
 		),
 	);
 	const refresh = () =>
@@ -67,6 +70,24 @@ export function ClientManager() {
 	const revoke = useMutation(
 		trpc.portal.revoke.mutationOptions({
 			onSuccess: refresh,
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const removeAccess = useMutation(
+		trpc.portal.removeAccess.mutationOptions({
+			onSuccess: async () => {
+				await refresh();
+				toast.success("Portal login removed immediately.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const deleteContact = useMutation(
+		trpc.clients.deleteContact.mutationOptions({
+			onSuccess: async () => {
+				await refresh();
+				toast.success("Contact and linked login removed.");
+			},
 			onError: (error) => toast.error(error.message),
 		}),
 	);
@@ -244,7 +265,7 @@ export function ClientManager() {
 															Invite
 														</Button>
 													) : null}
-													{access?.active ? (
+											{access?.active ? (
 														<Button
 															size="sm"
 															variant="ghost"
@@ -252,7 +273,27 @@ export function ClientManager() {
 														>
 															Revoke
 														</Button>
-													) : null}
+											) : null}
+											{access ? (
+												<Button
+													size="sm"
+													variant="ghost"
+													onClick={() => removeAccess.mutate({ id: access.id })}
+												>
+													Remove login
+												</Button>
+											) : null}
+											<Button
+												size="icon-sm"
+												variant="ghost"
+												aria-label={`Delete ${contact.firstName}`}
+												onClick={() => deleteContact.mutate({
+													companyId: account.id,
+													contactId: contact.id,
+												})}
+											>
+												<TrashCan />
+											</Button>
 												</div>
 											</div>
 										);

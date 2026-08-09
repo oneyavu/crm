@@ -12,10 +12,10 @@ export class OperationsController {
 	@Get(":id")
 	async download(
 		@Param("id") id: string,
-		@Session() _session: CrmSession,
+		@Session() session: CrmSession,
 		@Res({ passthrough: true }) response: Response,
 	) {
-		const document = await this.operations.documentContent(id);
+		const document = await this.operations.documentContent(id, session.user.id);
 		const content = Buffer.from(document.content);
 		response.setHeader("Cache-Control", "private, no-store");
 		response.setHeader("Content-Length", content.byteLength.toString());

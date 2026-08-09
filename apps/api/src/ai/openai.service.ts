@@ -3,6 +3,8 @@ import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type InputFile = { name: string; mediaType: string; contentBase64: string };
 
+const COST_FIRST_MODEL = process.env.OPENAI_MODEL?.trim() || "gpt-5-nano";
+
 @Injectable()
 export class OpenAiService {
 	configured() {
@@ -13,7 +15,7 @@ export class OpenAiService {
 		const key = process.env.OPENAI_API_KEY?.trim();
 		if (!key) {
 			throw new ServiceUnavailableException(
-				"GPT-5.5 is ready but the OpenAI API connection has not been authorized yet.",
+				"AI assistance is temporarily unavailable.",
 			);
 		}
 
@@ -24,7 +26,9 @@ export class OpenAiService {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				model: "gpt-5.5",
+				model: COST_FIRST_MODEL,
+				reasoning_effort: "low",
+				max_completion_tokens: 1200,
 				messages: [{ role: "system", content: system }, ...history],
 			}),
 			signal: AbortSignal.timeout(60_000),
@@ -43,7 +47,7 @@ export class OpenAiService {
 		const content = body.choices?.[0]?.message?.content;
 		if (typeof content !== "string" || !content.trim()) {
 			throw new ServiceUnavailableException(
-				"GPT-5.5 returned an empty response.",
+				"The AI service returned an empty response.",
 			);
 		}
 		return content.trim();
@@ -57,7 +61,7 @@ export class OpenAiService {
 		const key = process.env.OPENAI_API_KEY?.trim();
 		if (!key)
 			throw new ServiceUnavailableException(
-				"The OpenAI API connection has not been authorized yet.",
+				"AI assistance is temporarily unavailable.",
 			);
 		const content: Array<Record<string, string>> = [
 			{ type: "input_text", text: prompt },
@@ -74,7 +78,9 @@ export class OpenAiService {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				model: "gpt-5.5",
+				model: COST_FIRST_MODEL,
+				reasoning: { effort: "low" },
+				max_output_tokens: 2400,
 				instructions: system,
 				input: [{ role: "user", content }],
 				store: false,
@@ -99,7 +105,7 @@ export class OpenAiService {
 						.find((item) => item.type === "output_text")?.text;
 		if (!output?.trim())
 			throw new ServiceUnavailableException(
-				"OpenAI returned an empty deal analysis.",
+				"The AI service returned an empty analysis.",
 			);
 		return output.trim();
 	}
