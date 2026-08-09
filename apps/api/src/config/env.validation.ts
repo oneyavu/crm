@@ -58,6 +58,15 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	FIREFLIES_API_KEY?: string;
+
+	@IsOptional()
+	@IsString()
+	@MinLength(16)
+	FIREFLIES_WEBHOOK_SECRET?: string;
+
+	@IsOptional()
+	@IsString()
 	MICROSOFT_CLIENT_ID?: string;
 
 	@IsOptional()

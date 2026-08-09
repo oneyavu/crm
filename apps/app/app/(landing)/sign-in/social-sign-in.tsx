@@ -14,7 +14,13 @@ const PROVIDERS = {
 	microsoft: { label: "Continue with Microsoft", Logo: MicrosoftLogo },
 } as const satisfies Record<MailboxProviderId, unknown>;
 
-export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
+export function SocialSignIn({
+	provider,
+	callbackPath = "/",
+}: {
+	provider: MailboxProviderId;
+	callbackPath?: string;
+}) {
 	const [pending, setPending] = useState(false);
 
 	const { label, Logo } = PROVIDERS[provider];
@@ -31,7 +37,7 @@ export function SocialSignIn({ provider }: { provider: MailboxProviderId }) {
 
 		const { error } = await signIn.social({
 			provider,
-			callbackURL: `${origin}/`,
+			callbackURL: `${origin}${callbackPath}`,
 			errorCallbackURL: `${origin}/sign-in`,
 		});
 

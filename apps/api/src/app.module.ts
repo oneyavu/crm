@@ -18,6 +18,7 @@ import { DashboardModule } from "./dashboard/dashboard.module";
 import { DatabaseModule } from "./database/database.module";
 import { DealsModule } from "./deals/deals.module";
 import { FieldsModule } from "./fields/fields.module";
+import { FirefliesModule } from "./fireflies/fireflies.module";
 import { GoogleModule } from "./google/google.module";
 import { HealthModule } from "./health/health.module";
 import { InvoicesModule } from "./invoices/invoices.module";
@@ -27,6 +28,7 @@ import { MailboxModule } from "./mailbox/mailbox.module";
 import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { ProjectsModule } from "./projects/projects.module";
+import { PortalModule } from "./portal/portal.module";
 import { RecordsModule } from "./records/records.module";
 import { SearchModule } from "./search/search.module";
 import { SettingsModule } from "./settings/settings.module";
@@ -61,6 +63,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		CurrencyModule,
 		DealsModule,
 		FieldsModule,
+		FirefliesModule,
 		ActivitiesModule,
 		AgentModule,
 		DashboardModule,
@@ -70,6 +73,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		MicrosoftModule,
 		NotificationsModule,
 		ProjectsModule,
+		PortalModule,
 		RecordsModule,
 		SyncModule,
 		SettingsModule,

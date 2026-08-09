@@ -50,7 +50,7 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
 async function SignIn({
 	searchParams,
 }: Pick<PageProps<"/sign-in">, "searchParams">) {
-	const [session, options, { method }] = await Promise.all([
+	const [session, options, { method, callbackURL }] = await Promise.all([
 		getSession().catch((error: unknown) => {
 			unstable_rethrow(error);
 			console.error("Sign-in: could not read the session.", error);
@@ -69,11 +69,18 @@ async function SignIn({
 	if (options?.microsoft ?? false) configured.push("microsoft");
 
 	const providers = options?.providers ?? [];
+	const callbackPath =
+		typeof callbackURL === "string" && callbackURL.startsWith("/client")
+			? callbackURL
+			: "/";
 
 	const insisted = configured.find((provider) => provider === method);
-	const showSso = providers.length > 0 && insisted === undefined;
-	const social =
-		insisted !== undefined
+	const clientPortal = callbackPath.startsWith("/client");
+	const showSso =
+		!clientPortal && providers.length > 0 && insisted === undefined;
+	const social = clientPortal
+		? configured
+		: insisted !== undefined
 			? [insisted]
 			: providers.length === 0
 				? configured
@@ -104,9 +111,15 @@ async function SignIn({
 				description="Sign in with your account to continue."
 			/>
 
-			{showSso ? <SsoSignIn providers={providers} /> : null}
+			{showSso ? (
+				<SsoSignIn providers={providers} callbackPath={callbackPath} />
+			) : null}
 			{social.map((provider) => (
-				<SocialSignIn key={provider} provider={provider} />
+				<SocialSignIn
+					key={provider}
+					provider={provider}
+					callbackPath={callbackPath}
+				/>
 			))}
 		</>
 	);

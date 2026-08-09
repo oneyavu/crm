@@ -37,6 +37,7 @@ model User {
   factDecisions  ContactFact[]       @relation("FactDecider")
   conversations  AgentConversation[] @relation("ConversationOwner")
   fieldValues    FieldValue[]        @relation("FieldValueUser")
+  portalAccesses ClientPortalAccess[]
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -207,6 +208,11 @@ enum CatalogItemKind {
   AUTOMATION_PLAN
 }
 
+enum MeetingVisibility {
+  INTERNAL
+  CLIENT
+}
+
 enum BusinessRecordType {
   ESTIMATE
   EXPENSE
@@ -343,6 +349,8 @@ model Company {
   activities     Activity[]
   emailThreads   EmailThread[]
   calendarEvents CalendarEvent[]
+  meetingSummaries MeetingSummary[]
+  portalAccesses ClientPortalAccess[]
   fieldValues    FieldValue[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -400,6 +408,8 @@ model Contact {
   emailThreads    EmailThread[]
   calendarEvents  CalendarEvent[]
   eventAttendance CalendarAttendee[]
+  meetingSummaries MeetingSummary[]
+  portalAccesses ClientPortalAccess[]
   businessRecords BusinessRecord[]
   fieldValues     FieldValue[]
   createdAt       DateTime           @default(now())
@@ -1002,6 +1012,7 @@ model Project {
   invoices      Invoice[]
   notifications Notification[]
   businessRecords BusinessRecord[]
+  meetingSummaries MeetingSummary[]
   catalogItems  ProjectCatalogItem[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -1082,6 +1093,9 @@ model ProjectTask {
   dueDate     DateTime?
   completedAt DateTime?
 
+  meetingSummaryId String?
+  meetingSummary   MeetingSummary? @relation(fields: [meetingSummaryId], references: [id], onDelete: SetNull)
+
   notifications Notification[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -1089,6 +1103,7 @@ model ProjectTask {
   @@index([projectId, status, position])
   @@index([assigneeId, status])
   @@index([dueDate])
+  @@index([meetingSummaryId])
   @@map("projectTask")
 }
 
@@ -1498,6 +1513,7 @@ model CalendarEvent {
 
   attendees CalendarAttendee[]
   activity  Activity?
+  meetingSummary MeetingSummary?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1506,6 +1522,60 @@ model CalendarEvent {
   @@index([companyId, startsAt])
   @@index([contactId, startsAt])
   @@map("calendarEvent")
+}
+
+model MeetingSummary {
+  id                    String            @id @default(cuid())
+  firefliesTranscriptId String            @unique
+  title                 String
+  meetingAt             DateTime
+  durationMinutes       Int?
+  organizerEmail        String?
+  participantEmails     String[]
+  summary               String
+  actionItems           Json?
+  keywords              String[]
+  transcriptUrl         String?
+  visibility            MeetingVisibility @default(CLIENT)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  calendarEventId String? @unique
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  tasks           ProjectTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, meetingAt])
+  @@index([projectId, meetingAt])
+  @@map("meetingSummary")
+}
+
+model ClientPortalAccess {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  active         Boolean  @default(true)
+  invitedAt      DateTime @default(now())
+  lastAccessedAt DateTime?
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  userId String?
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, active])
+  @@index([userId])
+  @@map("clientPortalAccess")
 }
 
 model CalendarAttendee {

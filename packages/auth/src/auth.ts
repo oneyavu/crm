@@ -32,8 +32,6 @@ if (env.google) {
 		scope: [...IDENTITY_SCOPES],
 
 		accessType: "offline",
-
-		...(primaryWorkspaceDomain() ? { hd: primaryWorkspaceDomain() } : {}),
 	};
 }
 
@@ -132,6 +130,14 @@ export const auth = betterAuth({
 		user: {
 			create: {
 				before: async (user) => {
+					const portalAccess = await db.clientPortalAccess.findFirst({
+						where: {
+							email: user.email.trim().toLowerCase(),
+							active: true,
+						},
+						select: { id: true },
+					});
+
 					if (!hasSignInAllowList()) {
 						throw new APIError("FORBIDDEN", {
 							message:
@@ -139,7 +145,7 @@ export const auth = betterAuth({
 						});
 					}
 
-					if (!isWorkspaceEmail(user.email)) {
+					if (!isWorkspaceEmail(user.email) && !portalAccess) {
 						const domain = primaryWorkspaceDomain();
 						throw new APIError("FORBIDDEN", {
 							message: domain
@@ -156,7 +162,23 @@ export const auth = betterAuth({
 		session: {
 			create: {
 				before: async (session) => {
-					const workspaceId = await ensureWorkspaceMembership(session.userId);
+					const user = await db.user.findUnique({
+						where: { id: session.userId },
+						select: { email: true },
+					});
+					const portalAccess = user
+						? await db.clientPortalAccess.findFirst({
+								where: {
+									email: user.email.toLowerCase(),
+									active: true,
+								},
+								select: { id: true },
+							})
+						: null;
+					const workspaceId =
+						user && !isWorkspaceEmail(user.email) && portalAccess
+							? undefined
+							: await ensureWorkspaceMembership(session.userId);
 
 					return {
 						data: { ...session, activeOrganizationId: workspaceId ?? null },

@@ -41,7 +41,11 @@ type RailItem = {
 	icon: CarbonIconType;
 	match: "exact" | "prefix";
 	related?: string[];
+	external?: boolean;
+	nested?: boolean;
 };
+
+const BNS_URL = "https://uas3.cams.scotiabank.com/aos/cms/login/cmslogin.bns";
 
 const ITEMS: RailItem[] = [
 	{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
@@ -62,12 +66,21 @@ const ITEMS: RailItem[] = [
 	{ title: "Deals", href: "/deals", icon: Partnership, match: "prefix" },
 	{ title: "Projects", href: "/projects", icon: Task, match: "prefix" },
 	{ title: "Invoices", href: "/invoices", icon: Receipt, match: "prefix" },
+	{
+		title: "BNS Online Banking",
+		href: BNS_URL,
+		icon: Receipt,
+		match: "exact",
+		external: true,
+		nested: true,
+	},
 	{ title: "Records", href: "/records", icon: DataBase, match: "prefix" },
 	{ title: "VAYU Catalog", href: "/catalog", icon: Catalog, match: "prefix" },
 	{ title: "Settings", href: "/settings", icon: Settings, match: "prefix" },
 ];
 
 function isActive(item: RailItem, pathname: string): boolean {
+	if (item.external) return false;
 	return (
 		pathname === item.href ||
 		(item.match === "prefix" && pathname.startsWith(item.href)) ||
@@ -92,13 +105,16 @@ function RailLink({
 					variant="ghost"
 					className={cn(
 						"w-full justify-start gap-3 px-3 text-muted-foreground",
+						item.nested && "ml-5 w-[calc(100%-1.25rem)] text-xs",
 						active &&
 							"bg-muted text-foreground hover:bg-muted hover:text-foreground",
 					)}
 				>
 					<Link
 						href={item.href}
-						prefetch
+						prefetch={!item.external}
+						target={item.external ? "_blank" : undefined}
+						rel={item.external ? "noreferrer" : undefined}
 						onMouseEnter={onPrefetch}
 						onFocus={onPrefetch}
 						aria-current={active ? "page" : undefined}
@@ -131,13 +147,16 @@ function MobileRailLink({
 			variant="ghost"
 			className={cn(
 				"justify-start gap-3 text-muted-foreground",
+				item.nested && "ml-5 text-xs",
 				active &&
 					"bg-muted text-foreground hover:bg-muted hover:text-foreground",
 			)}
 		>
 			<Link
 				href={item.href}
-				prefetch
+				prefetch={!item.external}
+				target={item.external ? "_blank" : undefined}
+				rel={item.external ? "noreferrer" : undefined}
 				onMouseEnter={onPrefetch}
 				onFocus={onPrefetch}
 				aria-current={active ? "page" : undefined}
@@ -177,7 +196,9 @@ function MobileRailIconLink({
 		>
 			<Link
 				href={item.href}
-				prefetch
+				prefetch={!item.external}
+				target={item.external ? "_blank" : undefined}
+				rel={item.external ? "noreferrer" : undefined}
 				onMouseEnter={onPrefetch}
 				onFocus={onPrefetch}
 				aria-current={active ? "page" : undefined}
@@ -226,7 +247,7 @@ export function AppIconRail() {
 			ITEMS.map((item) => ({
 				...item,
 				section: item.href,
-				href: workspaceUrl(item.href),
+				href: item.external ? item.href : workspaceUrl(item.href),
 				related: item.related?.map((path) => workspaceUrl(path)),
 			})),
 		[workspaceUrl],

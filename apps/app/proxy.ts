@@ -14,7 +14,7 @@ const LANDING_PATH = "/";
 
 const SIGN_IN_PATH = "/sign-in";
 
-const UNGATED = ["/grant-access", "/eve"];
+const UNGATED = ["/grant-access", "/eve", "/client"];
 
 const SECTIONS = [
 	"/companies",
@@ -35,9 +35,15 @@ export async function proxy(request: NextRequest) {
 	if (
 		getSessionCookie(request, { cookiePrefix: AUTH_COOKIE_PREFIX }) === null
 	) {
-		return isPublic(pathname)
-			? NextResponse.next()
-			: NextResponse.redirect(new URL(SIGN_IN_PATH, request.nextUrl));
+		if (isPublic(pathname)) return NextResponse.next();
+		const signIn = new URL(SIGN_IN_PATH, request.nextUrl);
+		if (isUnder(pathname, "/client")) {
+			signIn.searchParams.set(
+				"callbackURL",
+				`${pathname}${request.nextUrl.search}`,
+			);
+		}
+		return NextResponse.redirect(signIn);
 	}
 
 	if (isUngated(pathname)) return NextResponse.next();

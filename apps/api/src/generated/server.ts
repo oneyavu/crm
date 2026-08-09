@@ -27,6 +27,7 @@ import { setAutoCreateInput, suppressDomainInput, threadInput, calendarEventInpu
 import { invoiceListInput, invoiceIdInput, invoiceCreateInput, invoiceStatusInput } from "../invoices/invoices.contracts";
 import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
+import { portalCompanyInput, portalGrantInput, portalAccessInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordIdInput } from "../records/records.contracts";
 import { setAgentModelInput, setResearchKeyInput } from "../settings/settings.contracts";
@@ -46,6 +47,7 @@ import type { GoogleRouter } from "../google/google.router";
 import type { InvoicesRouter } from "../invoices/invoices.router";
 import type { MicrosoftRouter } from "../microsoft/microsoft.router";
 import type { NotificationsRouter } from "../notifications/notifications.router";
+import type { PortalRouter } from "../portal/portal.router";
 import type { ProjectsRouter } from "../projects/projects.router";
 import type { RecordsRouter } from "../records/records.router";
 import type { SearchRouter } from "../search/search.router";
@@ -401,6 +403,19 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["markRead"]>>),
     markAllRead: publicProcedure
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<NotificationsRouter["markAllRead"]>>)
+    }),
+  portal: t.router({
+    mine: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["mine"]>>),
+    list: publicProcedure
+      .input(portalCompanyInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["list"]>>),
+    grant: publicProcedure
+      .input(portalGrantInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["grant"]>>),
+    revoke: publicProcedure
+      .input(portalAccessInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["revoke"]>>)
     }),
   projects: t.router({
     list: publicProcedure
