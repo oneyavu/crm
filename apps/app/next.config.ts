@@ -21,6 +21,21 @@ const allowedDevOrigins = (process.env.APP_URL ?? "")
 const nextConfig: NextConfig = {
 	allowedDevOrigins,
 
+	async headers() {
+		return [
+			{
+				source: "/:path*",
+				headers: [
+					{
+						key: "Content-Security-Policy",
+						value:
+							"frame-ancestors 'self' https://onevayu.com https://www.onevayu.com",
+					},
+				],
+			},
+		];
+	},
+
 	env: {
 		NEXT_PUBLIC_API_URL: apiUrl,
 	},

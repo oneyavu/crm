@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 	title: "Sign in",
 };
 
+export const instant = false;
+
 type SignInOptions = {
 	google: boolean;
 	microsoft: boolean;
