@@ -23,7 +23,7 @@
 		},
 		{
 			"path": "/internal/platform-operations/health",
-			"schedule": "0 * * * *"
+			"schedule": "0 12 * * *"
 		},
 		{
 			"path": "/internal/platform-operations/daily-brief",
