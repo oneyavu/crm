@@ -130,6 +130,21 @@ export class AgentTriggerService {
 		});
 	}
 
+	async projectWork(input: {
+		projectId: string;
+		companyId?: string | null;
+		reason: string;
+		priority?: number;
+	}): Promise<void> {
+		await this.enqueue({
+			companyId: input.companyId ?? undefined,
+			kind: `project:${input.projectId}:work`,
+			reason: input.reason,
+			priority: input.priority ?? PRIORITY.sweep,
+			budget: 4,
+		});
+	}
+
 	builderConversationQueued(): void {
 		this.pokeRoute("/internal/crm/builder-dispatch");
 	}

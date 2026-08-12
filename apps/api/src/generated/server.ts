@@ -30,8 +30,9 @@ import { setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
 import { notificationListInput, notificationIdInput } from "../notifications/notifications.contracts";
 import { entityIdInput, expenseCategoryInput, messageTemplateInput, financialAccountInput, staffProfileInput, compensationInput, metricInput, pricingInput, documentInput, dealAnalysisInput, dealSheetInput, marketResearchInput, forecastInput } from "../operations/operations.contracts";
 import { paperclipAgentInput, paperclipInstructionInput, paperclipApprovalInput, paperclipWorkflowInput } from "../paperclip/paperclip.contracts";
+import { inquiryListInput, inquiryUpdateInput, connectionUpdateInput, platformKindInput, writeAccessInput, actionRequestInput, actionDecisionInput } from "../platform-operations/platform-operations.contracts";
 import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, portalLiveChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
-import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput, projectPhaseCreateInput, projectPhaseUpdateInput, projectTaskCommentCreateInput, projectTaskDependencyInput, projectTimeEntryCreateInput } from "../projects/projects.contracts";
+import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput, projectPhaseCreateInput, projectPhaseUpdateInput, projectTaskCommentCreateInput, projectTaskDependencyInput, projectTimeEntryCreateInput, projectManagerSyncInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordUpdateInput, recordIdInput } from "../records/records.contracts";
 import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
@@ -54,6 +55,7 @@ import type { MicrosoftRouter } from "../microsoft/microsoft.router";
 import type { NotificationsRouter } from "../notifications/notifications.router";
 import type { OperationsRouter } from "../operations/operations.router";
 import type { PaperclipRouter } from "../paperclip/paperclip.router";
+import type { PlatformOperationsRouter } from "../platform-operations/platform-operations.router";
 import type { PortalRouter } from "../portal/portal.router";
 import type { ProjectsRouter } from "../projects/projects.router";
 import type { RecordsRouter } from "../records/records.router";
@@ -543,6 +545,35 @@ const appRouter = t.router({
     sync: publicProcedure
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PaperclipRouter["sync"]>>)
     }),
+  platformOperations: t.router({
+    dashboard: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["dashboard"]>>),
+    inquiries: publicProcedure
+      .input(inquiryListInput)
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["inquiries"]>>),
+    actions: publicProcedure
+      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["actions"]>>),
+    updateInquiry: publicProcedure
+      .input(inquiryUpdateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["updateInquiry"]>>),
+    saveConnection: publicProcedure
+      .input(connectionUpdateInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["saveConnection"]>>),
+    checkHealth: publicProcedure
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["checkHealth"]>>),
+    markReadOnlyVerified: publicProcedure
+      .input(platformKindInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["markReadOnlyVerified"]>>),
+    setWriteAccess: publicProcedure
+      .input(writeAccessInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["setWriteAccess"]>>),
+    requestAction: publicProcedure
+      .input(actionRequestInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["requestAction"]>>),
+    decideAction: publicProcedure
+      .input(actionDecisionInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PlatformOperationsRouter["decideAction"]>>)
+    }),
   portal: t.router({
     mine: publicProcedure
       .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<PortalRouter["mine"]>>),
@@ -627,7 +658,10 @@ const appRouter = t.router({
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["removeDependency"]>>),
     logTime: publicProcedure
       .input(projectTimeEntryCreateInput)
-      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["logTime"]>>)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["logTime"]>>),
+    syncWithProjectManager: publicProcedure
+      .input(projectManagerSyncInput)
+      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<ProjectsRouter["syncWithProjectManager"]>>)
     }),
   records: t.router({
     list: publicProcedure

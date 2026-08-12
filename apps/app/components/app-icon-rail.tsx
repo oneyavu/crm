@@ -7,6 +7,7 @@ import Chat from "@carbon/icons-react/es/Chat";
 import Close from "@carbon/icons-react/es/Close";
 import Dashboard from "@carbon/icons-react/es/Dashboard";
 import DataBase from "@carbon/icons-react/es/DataBase";
+import IbmCloud from "@carbon/icons-react/es/IbmCloud";
 import Partnership from "@carbon/icons-react/es/Partnership";
 import Receipt from "@carbon/icons-react/es/Receipt";
 import Settings from "@carbon/icons-react/es/Settings";
@@ -90,6 +91,13 @@ const ITEMS: RailItem[] = [
 		title: "Business Operations",
 		href: "/operations",
 		icon: Dashboard,
+		match: "prefix",
+		adminOnly: true,
+	},
+	{
+		title: "Platform Operations",
+		href: "/platform-operations",
+		icon: IbmCloud,
 		match: "prefix",
 		adminOnly: true,
 	},

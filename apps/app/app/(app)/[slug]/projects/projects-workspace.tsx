@@ -96,7 +96,7 @@ export function ProjectsWorkspace() {
 							</select>
 						</label>
 						<label className="grid gap-1 text-sm">
-							Owner
+							Project manager
 							<select
 								className="h-9 rounded-md border bg-background px-3"
 								value={resolvedOwner}
@@ -140,6 +140,9 @@ export function ProjectsWorkspace() {
 									<h2 className="font-medium">{project.name}</h2>
 									<p className="mt-1 text-muted-foreground text-sm">
 										{project.company?.name ?? "Internal"}
+									</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Project manager: {project.owner?.name ?? "Unassigned"}
 									</p>
 								</div>
 								<Badge variant="outline">{label(project.status)}</Badge>

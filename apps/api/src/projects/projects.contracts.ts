@@ -115,3 +115,12 @@ export const projectTimeEntryCreateInput = z.object({
 export type ProjectTimeEntryCreateInput = z.infer<
 	typeof projectTimeEntryCreateInput
 >;
+
+export const projectManagerSyncInput = z.object({
+	projectId: z.string().min(1),
+	direction: z
+		.enum(["push", "pull", "full"])
+		.optional()
+		.default("full"),
+});
+export type ProjectManagerSyncInput = z.infer<typeof projectManagerSyncInput>;

@@ -48,6 +48,9 @@ model User {
   createdDealSheets            DealSheet[]                @relation("DealSheetCreator")
   invoiceAssistantSessions     InvoiceAssistantSession[]  @relation("InvoiceAssistantCreator")
   approvedInvoiceActions       InvoiceAssistantAction[]   @relation("InvoiceAssistantApprover")
+  assignedInquiries            Inquiry[]                  @relation("InquiryAssignee")
+  requestedPlatformActions     PlatformAction[]           @relation("PlatformActionRequester")
+  approvedPlatformActions      PlatformAction[]           @relation("PlatformActionApprover")
 
   createdAgentDefinitions AgentDefinition[]             @relation("AgentDefinitionCreator")
   createdAgentVersions    AgentVersion[]                @relation("AgentVersionCreator")
@@ -213,6 +216,53 @@ enum NotificationType {
   INVOICE_SENT
   INVOICE_DUE
   INVOICE_PAID
+  INQUIRY_RECEIVED
+  PLATFORM_ALERT
+  DAILY_BRIEF
+}
+
+enum InquirySource {
+  WEBSITE
+  SUPRCREATE
+  ONECARD
+  ONEDIGITAL
+  CHAT
+  EMAIL
+  MANUAL
+}
+
+enum InquiryStatus {
+  NEW
+  TRIAGED
+  QUALIFIED
+  CONVERTED
+  CLOSED
+  SPAM
+}
+
+enum PlatformKind {
+  WEBSITE
+  SUPRCREATE
+  ONECARD
+  ONEDIGITAL
+}
+
+enum PlatformHealthStatus {
+  UNKNOWN
+  HEALTHY
+  DEGRADED
+  DOWN
+  AUTH_REQUIRED
+}
+
+enum PlatformActionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  QUEUED
+  COMPLETED
+  FAILED
+  REJECTED
 }
 
 enum EmailDeliveryStatus {
@@ -494,6 +544,7 @@ model Company {
   paymentSubmissions       InvoicePaymentSubmission[]
   dealSheets               DealSheet[]
   invoiceAssistantSessions InvoiceAssistantSession[]
+  inquiries                Inquiry[]
   fieldValues              FieldValue[]
   createdAt                DateTime                   @default(now())
   updatedAt                DateTime                   @updatedAt
@@ -554,6 +605,7 @@ model Contact {
   meetingSummaries MeetingSummary[]
   portalAccesses   ClientPortalAccess[]
   businessRecords  BusinessRecord[]
+  inquiries        Inquiry[]
   fieldValues      FieldValue[]
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
@@ -1088,6 +1140,7 @@ model Deal {
   contacts    DealContact[]
   activities  Activity[]
   fieldValues FieldValue[]
+  inquiries   Inquiry[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -2218,6 +2271,128 @@ model ClientPortalAccess {
   @@index([companyId, active])
   @@index([userId])
   @@map("clientPortalAccess")
+}
+
+model Inquiry {
+  id         String        @id @default(cuid())
+  reference  String        @unique
+  source     InquirySource
+  externalId String?
+  status     InquiryStatus @default(NEW)
+
+  organizationName String?
+  contactName      String?
+  email            String?
+  phone            String?
+  website          String?
+  country          String?
+  industry         String?
+  organizationSize String?
+  challenge        String?
+  desiredOutcome   String?
+  currentSystems   String?
+  monthlyVolume    String?
+  timeline         String?
+  investment       String?
+  deliveryModel    String?
+  sensitivity      String?
+  hosting          String?
+  followUp         String?
+  security         String?
+  notes            String?
+  consent          Boolean @default(false)
+  campaign         Json?
+  rawPayload       Json
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  assignedToId  String?
+  assignedTo    User?     @relation("InquiryAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  priority      String?
+  score         Int?
+  triageSummary String?
+  triagedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([source, externalId])
+  @@index([status, createdAt])
+  @@index([source, createdAt])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([assignedToId, status])
+  @@map("inquiry")
+}
+
+model PlatformConnection {
+  id                 String               @id @default(cuid())
+  kind               PlatformKind         @unique
+  name               String
+  baseUrl            String
+  adminUrl           String
+  embedUrl           String?
+  enabled            Boolean              @default(true)
+  embedAllowed       Boolean              @default(false)
+  writeEnabled       Boolean              @default(false)
+  readOnlyVerifiedAt DateTime?
+  healthStatus       PlatformHealthStatus @default(UNKNOWN)
+  lastCheckedAt      DateTime?
+  lastHealthyAt      DateTime?
+  lastError          String?
+  lastSyncAt         DateTime?
+  metadata           Json?
+  events             PlatformEvent[]
+  actions            PlatformAction[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@map("platformConnection")
+}
+
+model PlatformEvent {
+  id           String             @id @default(cuid())
+  connectionId String
+  connection   PlatformConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  externalId   String?
+  type         String
+  severity     String             @default("INFO")
+  title        String
+  summary      String?
+  occurredAt   DateTime
+  payload      Json
+  createdAt    DateTime           @default(now())
+
+  @@unique([connectionId, externalId])
+  @@index([connectionId, occurredAt])
+  @@index([severity, occurredAt])
+  @@map("platformEvent")
+}
+
+model PlatformAction {
+  id            String               @id @default(cuid())
+  connectionId  String
+  connection    PlatformConnection   @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  kind          String
+  summary       String
+  payload       Json
+  status        PlatformActionStatus @default(PENDING_APPROVAL)
+  requestedById String
+  requestedBy   User                 @relation("PlatformActionRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  approvedById  String?
+  approvedBy    User?                @relation("PlatformActionApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt    DateTime?
+  result        Json?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([connectionId, status, createdAt])
+  @@index([requestedById, createdAt])
+  @@map("platformAction")
 }
 
 model ServiceRequest {

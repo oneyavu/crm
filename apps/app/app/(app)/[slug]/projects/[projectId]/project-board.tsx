@@ -29,6 +29,9 @@ import { useTRPC } from "@/lib/trpc/client";
 import type { RouterOutputs } from "@/lib/trpc/types";
 import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 
+const PROJECT_MANAGER_PLATFORM_URL =
+	process.env.NEXT_PUBLIC_PROJECT_MANAGER_PLATFORM_URL ?? "";
+
 const STATUSES = ["TODO", "IN_PROGRESS", "BLOCKED", "DONE"] as const;
 type ProjectData = RouterOutputs["projects"]["byId"];
 type ProjectTask = ProjectData["tasks"][number];
@@ -127,6 +130,31 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 			onError: (error) => toast.error(error.message),
 		}),
 	);
+	const syncWithProjectManager = useMutation(
+		trpc.projects.syncWithProjectManager.mutationOptions({
+			onSuccess: (result) => {
+				if (result.ok) {
+					toast.success("Project synced with manager platform.");
+				} else {
+					toast.warning(result.reason);
+				}
+				setSyncingDirection(null);
+				setLastSyncMessage(result.reason);
+				refresh();
+			},
+			onError: (error) => {
+				setSyncingDirection(null);
+				setLastSyncMessage("Sync failed: " + error.message);
+				toast.error(error.message);
+			},
+		}),
+	);
+	const [lastSyncMessage, setLastSyncMessage] = useState<
+		string | null
+	>(null);
+	const [syncingDirection, setSyncingDirection] = useState<
+		"push" | "pull" | "full" | null
+	>(null);
 
 	const data = project.data;
 	const selectedTask =
@@ -162,6 +190,11 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 						<span className="text-muted-foreground text-xs">
 							Live workspace
 						</span>
+						{data?.owner?.name ? (
+							<span className="text-muted-foreground text-xs">
+								· Project manager: {data.owner.name}
+							</span>
+						) : null}
 						<Button
 							variant="outline"
 							onClick={() =>
@@ -246,6 +279,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 						<TabsTrigger value="timeline">Timeline</TabsTrigger>
 						<TabsTrigger value="workload">Workload</TabsTrigger>
 						<TabsTrigger value="time">Time</TabsTrigger>
+						<TabsTrigger value="platform">Project manager</TabsTrigger>
 					</TabsList>
 					<TabsContent value="overview">
 						<Overview
@@ -295,6 +329,27 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
 									billable: false,
 								})
 							}
+						/>
+					</TabsContent>
+					<TabsContent value="platform">
+						<ProjectManagerPanel
+							projectId={projectId}
+							projectName={data?.name ?? "Project"}
+							projectCompany={data?.company?.name ?? "Internal project"}
+							projectManager={data?.owner?.name ?? "Unassigned"}
+							platformUrl={PROJECT_MANAGER_PLATFORM_URL}
+							isSyncing={syncWithProjectManager.isPending}
+							syncDirection={syncingDirection}
+							onSync={(direction) => {
+								setSyncingDirection(direction);
+								setLastSyncMessage(null);
+								syncWithProjectManager.mutate({
+									projectId,
+									direction,
+								});
+							}}
+							lastSyncMessage={lastSyncMessage}
+							onSyncSettled={(message) => setLastSyncMessage(message)}
 						/>
 					</TabsContent>
 				</Tabs>
@@ -1004,6 +1059,134 @@ function Empty({ text }: { text: string }) {
 		<div className="rounded-lg border border-dashed p-5 text-center text-muted-foreground">
 			{text}
 		</div>
+	);
+}
+
+function ProjectManagerPanel({
+	projectId,
+	projectName,
+	projectCompany,
+	projectManager,
+	platformUrl,
+	isSyncing,
+	syncDirection,
+	onSync,
+	lastSyncMessage,
+	onSyncSettled,
+}: {
+	projectId: string;
+	projectName: string;
+	projectCompany: string;
+	projectManager: string;
+	platformUrl: string;
+	isSyncing: boolean;
+	syncDirection: "push" | "pull" | "full" | null;
+	onSync: (direction: "push" | "pull" | "full") => void;
+	lastSyncMessage: string | null;
+	onSyncSettled: (message: string | null) => void;
+}) {
+	const projectManagerUrl = new URLSearchParams({
+		projectId,
+		projectName,
+		company: projectCompany,
+		projectManager,
+	}).toString();
+	const fullUrl = platformUrl
+		? `${platformUrl}?${projectManagerUrl}`
+		: "";
+
+	return (
+		<section className="grid gap-4 lg:grid-cols-2">
+			<article className="rounded-xl border bg-card p-4">
+				<h2 className="font-semibold">HCengineering / Project manager bridge</h2>
+				<p className="mt-1 text-muted-foreground">
+					Use this section to map Worklenz/HC-style project operations
+					(roadmap, task groups, planning cycles and approvals) to this project.
+				</p>
+				<ul className="mt-4 grid gap-2 text-sm">
+					<li>• Tasks and statuses are mirrored from this module.</li>
+					<li>• Task comments and activity are queued for agent visibility.</li>
+					<li>• Progress, timeline and workload context is preserved for the AI.</li>
+					<li>• Project manager is linked from the Project owner profile.</li>
+				</ul>
+				{fullUrl ? (
+					<div className="mt-4 grid gap-3">
+						<div className="rounded-md border p-2">
+							<p className="text-muted-foreground text-xs">Integrated endpoint</p>
+							<p className="break-all text-xs">{platformUrl}</p>
+						</div>
+						<div className="flex flex-wrap gap-2">
+							{(["full", "push", "pull"] as const).map((direction) => (
+								<Button
+									key={direction}
+									variant="outline"
+									disabled={isSyncing}
+									onClick={() => {
+										onSyncSettled(null);
+										onSync(direction);
+									}}
+								>
+									{isSyncing && syncDirection === direction
+										? "Syncing..."
+										: `${(direction[0] ?? "f").toUpperCase()}${direction.slice(1)} sync`}
+								</Button>
+							))}
+						</div>
+						<div className="rounded-md border overflow-hidden">
+							<iframe
+								title="Project manager workspace"
+								src={fullUrl}
+								className="h-[540px] w-full"
+								sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"
+								allow="clipboard-read; clipboard-write; fullscreen"
+							/>
+						</div>
+						<a
+							className="inline-flex items-center justify-center rounded-md bg-[#6cd32c] px-3 py-2 text-sm font-medium text-black hover:bg-[#5fbe29]"
+							href={fullUrl}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Open in new tab (HC manager view)
+						</a>
+						{lastSyncMessage ? (
+							<p className="text-sm text-muted-foreground">{lastSyncMessage}</p>
+						) : null}
+					</div>
+				) : (
+					<p className="mt-4 text-sm text-muted-foreground">
+						Set NEXT_PUBLIC_PROJECT_MANAGER_PLATFORM_URL to expose the manager
+						endpoint.
+					</p>
+				)}
+			</article>
+			<article className="rounded-xl border bg-card p-4">
+				<h2 className="font-semibold">Connected workflow capabilities</h2>
+				<div className="mt-4 grid gap-2 text-sm">
+					<div className="rounded-md border p-3">
+						<p className="font-medium">Capabilities pack</p>
+						<p className="text-muted-foreground">
+							Project plans, phase tracking, milestone control, review notes and
+							delegation.
+						</p>
+					</div>
+					<div className="rounded-md border p-3">
+						<p className="font-medium">AI and staff visibility</p>
+						<p className="text-muted-foreground">
+							Every significant change here is routed as a project work item for
+							agent processing and follow-up updates.
+						</p>
+					</div>
+					<div className="rounded-md border p-3">
+						<p className="font-medium">Ready-to-connect actions</p>
+						<p className="text-muted-foreground">
+							Enable your HCengine-style project workspace on this endpoint and
+							we can sync client-level artifacts back into this board.
+						</p>
+					</div>
+				</div>
+			</article>
+		</section>
 	);
 }
 function label(value: string) {

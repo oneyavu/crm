@@ -12,6 +12,7 @@ export class PaperclipService {
 	private readonly url: string;
 	private readonly token?: string;
 	private readonly companyId?: string;
+	private readonly operationsAgentId?: string;
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		config: ConfigService<EnvironmentVariables, true>,
@@ -21,6 +22,9 @@ export class PaperclipService {
 		).replace(/\/$/, "");
 		this.token = config.get("PAPERCLIP_API_TOKEN", { infer: true });
 		this.companyId = config.get("PAPERCLIP_COMPANY_ID", { infer: true });
+		this.operationsAgentId = config.get("PAPERCLIP_OPERATIONS_AGENT_ID", {
+			infer: true,
+		});
 	}
 
 	async dashboard() {
@@ -200,6 +204,17 @@ export class PaperclipService {
 		return this.enqueueAndSend("workflow", routineId, payload, userId);
 	}
 
+	async automation(kind: string, payload: JsonObject, userId = "system") {
+		if (!this.operationsAgentId) return { configured: false, queued: false };
+		const result = await this.enqueueAndSend(
+			"automation",
+			this.operationsAgentId,
+			{ kind, ...payload },
+			userId,
+		);
+		return { configured: true, queued: true, ...result };
+	}
+
 	async sync() {
 		const flushed = await this.flush(true);
 		return { flushed, dashboard: await this.dashboard() };
@@ -260,14 +275,20 @@ export class PaperclipService {
 		if (!row || row.status !== "PENDING") return false;
 		try {
 			const payload = row.payload as JsonObject;
-			if (row.kind === "instruction")
+			if (row.kind === "instruction" || row.kind === "automation")
 				await this.request(`/api/agents/${row.targetId}/wakeup`, {
 					method: "POST",
 					body: {
 						source: "on_demand",
-						triggerDetail: "manual",
-						reason: String(payload.message),
-						payload: { instruction: payload.message, source: "vayu-crm" },
+						triggerDetail:
+							row.kind === "automation" ? "platform-operations" : "manual",
+						reason: String(
+							payload.message ?? payload.kind ?? "CRM automation event",
+						),
+						payload:
+							row.kind === "automation"
+								? { ...payload, source: "vayu-crm" }
+								: { instruction: payload.message, source: "vayu-crm" },
 						idempotencyKey: row.id,
 					},
 				});

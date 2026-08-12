@@ -31,6 +31,7 @@ import { MicrosoftModule } from "./microsoft/microsoft.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { OperationsModule } from "./operations/operations.module";
 import { PaperclipModule } from "./paperclip/paperclip.module";
+import { PlatformOperationsModule } from "./platform-operations/platform-operations.module";
 import { PortalModule } from "./portal/portal.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { RecordsModule } from "./records/records.module";
@@ -83,6 +84,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
 		ProjectsModule,
 		PortalModule,
 		PaperclipModule,
+		PlatformOperationsModule,
 		RecordsModule,
 		SyncModule,
 		SettingsModule,

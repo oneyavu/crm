@@ -155,6 +155,32 @@ export class EnvironmentVariables {
 
 	@IsOptional()
 	@IsString()
+	PAPERCLIP_OPERATIONS_AGENT_ID?: string;
+
+	@IsOptional()
+	@IsString()
+	@MinLength(32)
+	WEBSITE_INTAKE_WEBHOOK_SECRET?: string;
+
+	@IsOptional()
+	@IsString()
+	@MinLength(32)
+	PLATFORM_CONNECTOR_WEBHOOK_SECRET?: string;
+
+	@IsOptional()
+	@IsUrl({ require_tld: false, require_protocol: true })
+	PROJECT_MANAGER_BRIDGE_URL?: string;
+
+	@IsOptional()
+	@IsString()
+	PROJECT_MANAGER_BRIDGE_TOKEN?: string;
+
+	@IsOptional()
+	@IsString()
+	PROJECT_MANAGER_WEBHOOK_SECRET?: string;
+
+	@IsOptional()
+	@IsString()
 	CRM_TELEMETRY_DISABLED?: string;
 }
 

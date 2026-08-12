@@ -4,6 +4,7 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
 import { readCompanyHistory, readDealHistory } from "./accounts";
 import { readCrmHistory } from "./crm";
 import { searchCrm } from "./lookup";
+import { listProjectsForAgent, readProjectForAgent } from "./projects";
 import { lockAgentRun, runTerminalEventId } from "./run-state";
 
 const ACTION_LEASE_MS = 5 * 60_000;
@@ -133,6 +134,23 @@ export async function readRunRecord(
 		includeEmail: sources.gmail,
 		includeCalendar: sources.calendar,
 	});
+}
+
+export async function listRunProjects(
+	runId: string,
+	input: { query?: string; status?: string; limit: number },
+) {
+	const run = await runContext(runId);
+	assertWorkspaceProjectAccess(run.recordScope);
+	return listProjectsForAgent(input);
+}
+
+export async function readRunProject(runId: string, projectId: string) {
+	const run = await runContext(runId);
+	assertWorkspaceProjectAccess(run.recordScope);
+	const project = await readProjectForAgent(projectId);
+	if (!project) throw new Error("That project does not exist.");
+	return project;
 }
 
 export async function createRunActivity(
@@ -543,6 +561,14 @@ function assertResourceAllowed(
 	throw new Error(
 		"That CRM record is outside this agent version's approved scope.",
 	);
+}
+
+function assertWorkspaceProjectAccess(mode: RunRecordScope) {
+	if (mode !== "WORKSPACE") {
+		throw new Error(
+			"Project data requires a workspace-scoped agent version. This selected-record version is not approved to read projects.",
+		);
+	}
 }
 
 export function allowedHistorySources(resources: RunResource[]): {

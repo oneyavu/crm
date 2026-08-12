@@ -11,9 +11,11 @@ import {
 	Injectable,
 	Logger,
 	NotFoundException,
+	Optional,
 } from "@nestjs/common";
 import { assignedProjectWhere, staffRole } from "../authz/staff-scope";
 import { blankToNull, decimalFromCents, toCents } from "../crm/values";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
 import { InjectDatabase } from "../database/database.constants";
 import { NotificationsService } from "../notifications/notifications.service";
 import {
@@ -31,6 +33,7 @@ import type {
 	ProjectTaskCreateInput,
 	ProjectTaskDependencyInput,
 	ProjectTaskUpdateInput,
+	ProjectManagerSyncInput,
 	ProjectTimeEntryCreateInput,
 	ProjectUpdateInput,
 } from "./projects.contracts";
@@ -48,6 +51,11 @@ const SORTABLE: Record<
 	dueDate: (dir) => ({ dueDate: { sort: dir, nulls: "last" } }),
 	createdAt: (dir) => ({ createdAt: dir }),
 };
+const PROJECT_MANAGER_BRIDGE_URL =
+	process.env.PROJECT_MANAGER_BRIDGE_URL?.trim() ?? "";
+const PROJECT_MANAGER_BRIDGE_TOKEN =
+	process.env.PROJECT_MANAGER_BRIDGE_TOKEN?.trim();
+const PROJECT_MANAGER_BRIDGE_TIMEOUT_MS = 25_000;
 
 @Injectable()
 export class ProjectsService {
@@ -56,6 +64,7 @@ export class ProjectsService {
 	constructor(
 		@InjectDatabase() private readonly db: Db,
 		private readonly notifications: NotificationsService,
+		@Optional() private readonly agent?: AgentTriggerService,
 	) {}
 
 	async list(input: ProjectListInput, actorId: string) {
@@ -149,6 +158,96 @@ export class ProjectsService {
 					orderBy: { createdAt: "asc" },
 					select: { role: true, user: { select: USER_SELECT } },
 				},
+				timeEntries: {
+					orderBy: { startedAt: "desc" },
+					take: 250,
+					select: {
+						id: true,
+						taskId: true,
+						description: true,
+						minutes: true,
+						billable: true,
+						approved: true,
+						startedAt: true,
+						staffUser: { select: USER_SELECT },
+					},
+				},
+				resourceUsage: {
+					orderBy: { occurredAt: "desc" },
+					take: 250,
+					select: {
+						id: true,
+						taskId: true,
+						agentId: true,
+						label: true,
+						processingMs: true,
+						inputTokens: true,
+						outputTokens: true,
+						estimatedCost: true,
+						occurredAt: true,
+						metadata: true,
+					},
+				},
+				meetingSummaries: {
+					orderBy: { meetingAt: "desc" },
+					take: 100,
+					select: {
+						id: true,
+						title: true,
+						meetingAt: true,
+						durationMinutes: true,
+						participantEmails: true,
+						summary: true,
+						actionItems: true,
+						keywords: true,
+						transcriptUrl: true,
+						visibility: true,
+					},
+				},
+				serviceRequests: {
+					orderBy: { updatedAt: "desc" },
+					take: 100,
+					select: {
+						id: true,
+						reference: true,
+						title: true,
+						description: true,
+						category: true,
+						priority: true,
+						status: true,
+						resolution: true,
+						createdAt: true,
+						updatedAt: true,
+					},
+				},
+				businessDocuments: {
+					orderBy: { updatedAt: "desc" },
+					select: {
+						id: true,
+						kind: true,
+						title: true,
+						label: true,
+						description: true,
+						fileName: true,
+						mediaType: true,
+						size: true,
+						source: true,
+						updatedAt: true,
+					},
+				},
+				invoices: {
+					orderBy: { issueDate: "desc" },
+					select: {
+						id: true,
+						number: true,
+						status: true,
+						issueDate: true,
+						dueDate: true,
+						currency: true,
+						total: true,
+						amountPaid: true,
+					},
+				},
 				phases: {
 					orderBy: { position: "asc" },
 					select: {
@@ -169,20 +268,6 @@ export class ProjectsService {
 						dueDate: true,
 						completedAt: true,
 						clientVisible: true,
-					},
-				},
-				timeEntries: {
-					orderBy: { startedAt: "desc" },
-					take: 100,
-					select: {
-						id: true,
-						taskId: true,
-						description: true,
-						minutes: true,
-						billable: true,
-						approved: true,
-						startedAt: true,
-						staffUser: { select: USER_SELECT },
 					},
 				},
 				tasks: {
@@ -297,6 +382,12 @@ export class ProjectsService {
 			},
 			select: { id: true, name: true, ownerId: true },
 		});
+		await this.queueProjectWork({
+			projectId: project.id,
+			projectName: project.name,
+			reason: `Project created by staff user ${actingUserId}.`,
+			companyId: input.companyId || null,
+		});
 
 		if (project.ownerId !== actingUserId) {
 			await this.notifications.notifyUser({
@@ -333,7 +424,7 @@ export class ProjectsService {
 		}
 		const current = await this.db.project.findUnique({
 			where: { id: input.id },
-			select: { ownerId: true },
+			select: { ownerId: true, companyId: true, name: true },
 		});
 		if (!current)
 			throw new NotFoundException(`No project with id ${input.id}.`);
@@ -362,6 +453,12 @@ export class ProjectsService {
 				...(input.currency !== undefined ? { currency: input.currency } : {}),
 			},
 			select: { id: true, name: true, ownerId: true, status: true },
+		});
+		await this.queueProjectWork({
+			projectId: project.id,
+			projectName: project.name,
+			reason: `Project updated by staff user ${actingUserId}.`,
+			companyId: current.companyId ?? null,
 		});
 
 		if (input.ownerId && input.ownerId !== current.ownerId) {
@@ -454,8 +551,14 @@ export class ProjectsService {
 				title: true,
 				projectId: true,
 				assigneeId: true,
-				project: { select: { name: true } },
+				project: { select: { id: true, name: true, companyId: true } },
 			},
+		});
+		await this.queueProjectWork({
+			projectId: task.projectId,
+			projectName: task.project.name,
+			reason: `Task ${task.title} created by staff user ${actingUserId}.`,
+			companyId: task.project.companyId,
 		});
 
 		if (task.assigneeId && task.assigneeId !== actingUserId) {
@@ -546,8 +649,14 @@ export class ProjectsService {
 				status: true,
 				projectId: true,
 				assigneeId: true,
-				project: { select: { name: true } },
+				project: { select: { id: true, name: true, companyId: true } },
 			},
+		});
+		await this.queueProjectWork({
+			projectId: task.projectId,
+			projectName: task.project?.name ?? "project",
+			reason: `Task ${task.title} updated by staff user ${actingUserId}.`,
+			companyId: task.project?.companyId ?? null,
 		});
 
 		if (task.assigneeId && task.assigneeId !== actingUserId) {
@@ -644,7 +753,7 @@ export class ProjectsService {
 
 	async addTaskComment(input: ProjectTaskCommentCreateInput, actorId: string) {
 		await this.assertTaskAccess(input.taskId, actorId);
-		return this.db.projectTaskComment.create({
+		const comment = await this.db.projectTaskComment.create({
 			data: {
 				taskId: input.taskId,
 				authorId: actorId,
@@ -657,9 +766,23 @@ export class ProjectsService {
 				body: true,
 				internal: true,
 				createdAt: true,
+				task: {
+					select: {
+						project: {
+							select: { id: true, name: true, companyId: true },
+						},
+					},
+				},
 				author: { select: USER_SELECT },
 			},
 		});
+		await this.queueProjectWork({
+			projectId: comment.task.project?.id ?? input.taskId,
+			projectName: comment.task.project?.name ?? "project",
+			reason: `Comment added by staff user ${actorId}: ${comment.body.slice(0, 80)}`,
+			companyId: comment.task.project?.companyId ?? null,
+		});
+		return comment;
 	}
 
 	async addDependency(input: ProjectTaskDependencyInput, actorId: string) {
@@ -703,7 +826,7 @@ export class ProjectsService {
 				);
 		}
 		const startedAt = date(input.startedAt) ?? new Date();
-		return this.db.timeEntry.create({
+		const entry = await this.db.timeEntry.create({
 			data: {
 				projectId: input.projectId,
 				taskId: input.taskId || null,
@@ -714,8 +837,394 @@ export class ProjectsService {
 				minutes: input.minutes,
 				billable: input.billable,
 			},
-			select: { id: true, projectId: true, taskId: true, minutes: true },
+			select: {
+				id: true,
+				projectId: true,
+				taskId: true,
+				minutes: true,
+				project: { select: { name: true, companyId: true } },
+			},
 		});
+		await this.queueProjectWork({
+			projectId: input.projectId,
+			projectName: entry.project?.name ?? "Project time entry",
+			reason: "Time entry logged.",
+			companyId: entry.project?.companyId ?? null,
+		});
+		return entry;
+	}
+
+	async syncWithProjectManager(
+		input: ProjectManagerSyncInput,
+		actorId: string,
+	) {
+		const access = await staffRole(this.db, actorId);
+		if (!access.admin) {
+			const assigned = await this.db.project.count({
+				where: { id: input.projectId, ...assignedProjectWhere(actorId) },
+			});
+			if (!assigned)
+				throw new ForbiddenException(
+					"Only assigned staff may sync this project with the manager platform.",
+				);
+		}
+
+		if (!PROJECT_MANAGER_BRIDGE_URL) {
+			return {
+				ok: false,
+				projectId: input.projectId,
+				direction: input.direction,
+				reason: "Project manager bridge URL is not configured.",
+			};
+		}
+
+		const snapshot = await this.buildProjectManagerSnapshot(
+			input.projectId,
+			actorId,
+		);
+		const request = {
+			direction: input.direction,
+			project: snapshot,
+			meta: { actorId },
+		};
+
+		const headers = {
+			"content-type": "application/json",
+			...(PROJECT_MANAGER_BRIDGE_TOKEN
+				? { Authorization: `Bearer ${PROJECT_MANAGER_BRIDGE_TOKEN}` }
+				: {}),
+		};
+
+		try {
+			const response = await fetch(
+				`${PROJECT_MANAGER_BRIDGE_URL}/crm/projects/sync`,
+				{
+					method: "POST",
+					headers,
+					body: JSON.stringify(request),
+					signal: AbortSignal.timeout(PROJECT_MANAGER_BRIDGE_TIMEOUT_MS),
+				},
+			);
+
+			if (!response.ok) {
+				throw new Error(
+					`Project manager bridge returned ${response.status} ${response.statusText}`,
+				);
+			}
+
+			let bridgeResponse: unknown = null;
+			try {
+				bridgeResponse = await response.json();
+			} catch {
+				bridgeResponse = null;
+			}
+
+			await this.queueProjectWork({
+				projectId: snapshot.id,
+				projectName: snapshot.name,
+				reason: `Project synced with manager bridge (${input.direction}).`,
+				companyId: snapshot.companyId,
+			});
+
+			return {
+				ok: true,
+				projectId: input.projectId,
+				direction: input.direction,
+				bridgeResponse,
+				reason: "Sync request sent.",
+			};
+		} catch (error) {
+			this.logger.debug({
+				message: "Project manager sync failed",
+				projectId: input.projectId,
+				reason: error instanceof Error ? error.message : String(error),
+			});
+
+			return {
+				ok: false,
+				projectId: input.projectId,
+				direction: input.direction,
+				reason:
+					"Project manager bridge is unavailable right now. Try again in a moment.",
+			};
+		}
+	}
+
+	private async buildProjectManagerSnapshot(
+		projectId: string,
+		actorId: string,
+	) {
+		const access = await staffRole(this.db, actorId);
+		const project = await this.db.project.findFirst({
+			where: {
+				id: projectId,
+				...(access.admin ? {} : assignedProjectWhere(actorId)),
+			},
+			select: {
+				id: true,
+				name: true,
+				description: true,
+				status: true,
+				startDate: true,
+				dueDate: true,
+				budget: true,
+				currency: true,
+				company: { select: { id: true, name: true } },
+				owner: { select: USER_SELECT },
+				members: {
+					orderBy: { createdAt: "asc" },
+					select: { role: true, user: { select: USER_SELECT } },
+				},
+				timeEntries: {
+					orderBy: { startedAt: "desc" },
+					take: 250,
+					select: {
+						id: true,
+						taskId: true,
+						description: true,
+						minutes: true,
+						billable: true,
+						approved: true,
+						startedAt: true,
+						staffUser: { select: USER_SELECT },
+					},
+				},
+				resourceUsage: {
+					orderBy: { occurredAt: "desc" },
+					take: 250,
+					select: {
+						id: true,
+						taskId: true,
+						agentId: true,
+						label: true,
+						processingMs: true,
+						inputTokens: true,
+						outputTokens: true,
+						estimatedCost: true,
+						occurredAt: true,
+						metadata: true,
+					},
+				},
+				meetingSummaries: {
+					orderBy: { meetingAt: "desc" },
+					take: 100,
+					select: {
+						id: true,
+						title: true,
+						meetingAt: true,
+						durationMinutes: true,
+						participantEmails: true,
+						summary: true,
+						actionItems: true,
+						keywords: true,
+						transcriptUrl: true,
+						visibility: true,
+					},
+				},
+				serviceRequests: {
+					orderBy: { updatedAt: "desc" },
+					take: 100,
+					select: {
+						id: true,
+						reference: true,
+						title: true,
+						description: true,
+						category: true,
+						priority: true,
+						status: true,
+						resolution: true,
+						createdAt: true,
+						updatedAt: true,
+					},
+				},
+				businessDocuments: {
+					orderBy: { updatedAt: "desc" },
+					select: {
+						id: true,
+						kind: true,
+						title: true,
+						label: true,
+						description: true,
+						fileName: true,
+						mediaType: true,
+						size: true,
+						source: true,
+						updatedAt: true,
+					},
+				},
+				invoices: {
+					orderBy: { issueDate: "desc" },
+					select: {
+						id: true,
+						number: true,
+						status: true,
+						issueDate: true,
+						dueDate: true,
+						currency: true,
+						total: true,
+						amountPaid: true,
+					},
+				},
+				phases: {
+					orderBy: { position: "asc" },
+					select: {
+						id: true,
+						name: true,
+						color: true,
+						position: true,
+						startDate: true,
+						dueDate: true,
+					},
+				},
+				milestones: {
+					orderBy: { position: "asc" },
+					select: {
+						id: true,
+						title: true,
+						completedAt: true,
+						dueDate: true,
+					},
+				},
+				tasks: {
+					orderBy: [
+						{ status: "asc" },
+						{ position: "asc" },
+						{ createdAt: "asc" },
+					],
+					select: {
+						id: true,
+						title: true,
+						description: true,
+						status: true,
+						priority: true,
+						position: true,
+						createdAt: true,
+						dueDate: true,
+						startDate: true,
+						completedAt: true,
+						progress: true,
+						estimatedMinutes: true,
+						clientVisible: true,
+						parentTaskId: true,
+						phase: { select: { id: true, name: true, color: true } },
+						assignee: { select: USER_SELECT },
+						blockedBy: {
+							select: {
+								blockedBy: {
+									select: { id: true, title: true, status: true },
+								},
+							},
+						},
+						comments: {
+							orderBy: { createdAt: "asc" },
+							select: {
+								id: true,
+								body: true,
+								internal: true,
+								createdAt: true,
+								author: { select: USER_SELECT },
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!project)
+			throw new NotFoundException(`No project with id ${projectId}.`);
+
+		return {
+			id: project.id,
+			name: project.name,
+			description: project.description,
+			status: project.status,
+			startDate: project.startDate?.toISOString() ?? null,
+			dueDate: project.dueDate?.toISOString() ?? null,
+			currency: project.currency,
+			budget: access.admin && project.budget ? project.budget.toString() : null,
+			companyId: project.company?.id ?? null,
+			companyName: project.company?.name ?? null,
+			owner: project.owner,
+			members: project.members.map((member) => ({
+				user: member.user,
+				role: member.role ?? null,
+			})),
+			phases: project.phases.map((phase) => ({
+				...phase,
+				startDate: phase.startDate?.toISOString() ?? null,
+				dueDate: phase.dueDate?.toISOString() ?? null,
+			})),
+			milestones: project.milestones.map((milestone) => ({
+				...milestone,
+				dueDate: milestone.dueDate?.toISOString() ?? null,
+				completedAt: milestone.completedAt?.toISOString() ?? null,
+			})),
+			tasks: project.tasks.map((task) => ({
+				...task,
+				createdAt: task.createdAt.toISOString(),
+				dueDate: task.dueDate?.toISOString() ?? null,
+				startDate: task.startDate?.toISOString() ?? null,
+				completedAt: task.completedAt?.toISOString() ?? null,
+				comments: task.comments.map((comment) => ({
+					...comment,
+					createdAt: comment.createdAt.toISOString(),
+				})),
+			})),
+			timeEntries: project.timeEntries.map((entry) => ({
+				...entry,
+				startedAt: entry.startedAt.toISOString(),
+			})),
+			resourceUsage: project.resourceUsage.map((entry) => ({
+				...entry,
+				estimatedCost: access.admin ? entry.estimatedCost.toString() : null,
+				occurredAt: entry.occurredAt.toISOString(),
+			})),
+			meetingSummaries: project.meetingSummaries.map((meeting) => ({
+				...meeting,
+				meetingAt: meeting.meetingAt.toISOString(),
+			})),
+			serviceRequests: project.serviceRequests.map((request) => ({
+				...request,
+				createdAt: request.createdAt.toISOString(),
+				updatedAt: request.updatedAt.toISOString(),
+			})),
+			documents: project.businessDocuments.map((document) => ({
+				...document,
+				updatedAt: document.updatedAt.toISOString(),
+			})),
+			invoices: access.admin
+				? project.invoices.map((invoice) => ({
+						...invoice,
+						issueDate: invoice.issueDate.toISOString(),
+						dueDate: invoice.dueDate.toISOString(),
+						total: invoice.total.toString(),
+						amountPaid: invoice.amountPaid.toString(),
+					}))
+				: [],
+		};
+	}
+
+	private async queueProjectWork(input: {
+		projectId: string;
+		projectName: string;
+		reason: string;
+		companyId: string | null;
+	}) {
+		if (!this.agent) return;
+
+		await this.agent
+			.projectWork({
+				projectId: input.projectId,
+				companyId: input.companyId,
+				reason: `${input.projectName}: ${input.reason}`,
+			})
+			.catch((error) => {
+				this.logger.debug({
+					message: "Could not queue project work for agent visibility",
+					projectId: input.projectId,
+					reason: error instanceof Error ? error.message : String(error),
+				});
+			});
 	}
 
 	private async assertProjectAccess(projectId: string, actorId: string) {

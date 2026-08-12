@@ -18,6 +18,7 @@ import {
 	projectPhaseUpdateInput,
 	projectTaskCommentCreateInput,
 	projectTaskCreateInput,
+	projectManagerSyncInput,
 	projectTaskDependencyInput,
 	projectTaskIdInput,
 	projectTaskUpdateInput,
@@ -144,5 +145,13 @@ export class ProjectsRouter {
 		@Input() input: z.infer<typeof projectTimeEntryCreateInput>,
 	) {
 		return this.projects.logTime(input, ctx.user.id);
+	}
+
+	@Mutation({ input: projectManagerSyncInput })
+	async syncWithProjectManager(
+		@Ctx() ctx: AuthedTrpcContext,
+		@Input() input: z.infer<typeof projectManagerSyncInput>,
+	) {
+		return this.projects.syncWithProjectManager(input, ctx.user.id);
 	}
 }
