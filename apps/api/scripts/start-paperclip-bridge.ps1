@@ -1,3 +1,11 @@
+$runningBridge = Get-CimInstance Win32_Process | Where-Object {
+	$_.Name -in @("node.exe", "bun.exe") -and
+	$_.CommandLine -match "paperclip-bridge\.mjs"
+}
+if ($runningBridge) {
+	exit 0
+}
+
 $env:PAPERCLIP_BRIDGE_SECRET = [Environment]::GetEnvironmentVariable(
 	"VAYU_PAPERCLIP_BRIDGE_SECRET",
 	"User"

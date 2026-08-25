@@ -59,8 +59,14 @@ list fails closed.** Parsed on demand. `packages/auth/src/workspace.ts`.
   sides. `BETTER_AUTH_URL` is a legacy fallback.
 - **`APP_URL`** (`:3000`) is also the trusted-origin and `callbackURL` allow-list.
 - **`AUTH_COOKIE_DOMAIN`** only for API and app on different subdomains of one parent.
-- **`AGENT_URL`** is the agent's deployment, server-side only, and **must include the
-  scheme** — validated at boot, or it throws when a task is queued instead.
+- **`AGENT_URL`** is the agent's deployment, server-side only, and **must include
+  the scheme** — validated at boot, or it throws when a task is queued instead.
+- **`PROJECT_MANAGER_BRIDGE_URL`** is an optional URL for the project manager sync
+  bridge used by the Projects module.
+- **`PROJECT_MANAGER_BRIDGE_TOKEN`** is the optional bearer token used to call
+  the bridge.
+- **`PROJECT_MANAGER_WEBHOOK_SECRET`** is a placeholder for future webhook
+  validation when callbacks are added.
 - **`AUTH_COOKIE_PREFIX` is `crm`** (`@crm/auth/cookies`), set on **both**
   `advanced.cookiePrefix` in `auth.ts` and `getSessionCookie(request, { cookiePrefix })`
   in `proxy.ts` — one alone redirects every signed-in request. Better Auth's default

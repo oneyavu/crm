@@ -125,6 +125,21 @@ export function DashboardSummary() {
 
 	return (
 		<div className="flex flex-col gap-6">
+			<Card className="border-primary/40 bg-primary/5">
+				<CardHeader>
+					<CardTitle>Sell V-OS to as many customers as possible</CardTitle>
+					<CardDescription>
+						Every qualified inquiry, company, contact, deal and follow-up should
+						advance a repeatable V-OS sale. CRM records synchronize to Founder
+						Command and Paperclip every five seconds.
+					</CardDescription>
+					<CardAction>
+						<Button asChild variant="contrast" size="sm">
+							<Link href={workspaceUrl("/deals")}>Work the pipeline</Link>
+						</Button>
+					</CardAction>
+				</CardHeader>
+			</Card>
 			<SalesDashboard summary={summary} />
 
 			<div className="grid gap-6 @3xl/page-content:grid-cols-2">

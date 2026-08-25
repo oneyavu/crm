@@ -17,6 +17,7 @@ export function TeamAgentsIndex({ initialAgents }: { initialAgents: Agents }) {
 	const agents = useQuery({
 		...trpc.agents.list.queryOptions(),
 		initialData: initialAgents,
+		refetchInterval: 5000,
 	});
 	const rows = agents.data ?? initialAgents;
 
