@@ -33,6 +33,12 @@ export class PaperclipBridgeController {
 		return this.paperclip.bridgeOutbox();
 	}
 
+	@Get("sales")
+	sales(@Headers("authorization") authorization?: string) {
+		this.authorize(authorization);
+		return this.paperclip.bridgeSalesSnapshot();
+	}
+
 	@Post("snapshot")
 	snapshot(
 		@Headers("authorization") authorization: string | undefined,
@@ -40,6 +46,15 @@ export class PaperclipBridgeController {
 	) {
 		this.authorize(authorization);
 		return this.paperclip.bridgeSnapshot(body);
+	}
+
+	@Post("crm-account")
+	crmAccount(
+		@Headers("authorization") authorization: string | undefined,
+		@Body() body: Parameters<PaperclipService["bridgeCrmAccountUpdate"]>[0],
+	) {
+		this.authorize(authorization);
+		return this.paperclip.bridgeCrmAccountUpdate(body);
 	}
 
 	@Post("outbox/:id")
@@ -54,7 +69,8 @@ export class PaperclipBridgeController {
 
 	private authorize(authorization?: string) {
 		// The local bridge is the only anonymous caller allowed on these routes.
-		if (!this.secret) throw new ServiceUnavailableException("Bridge not configured.");
+		if (!this.secret)
+			throw new ServiceUnavailableException("Bridge not configured.");
 		if (!timingSafeEquals(authorization ?? "", `Bearer ${this.secret}`)) {
 			throw new ForbiddenException();
 		}
