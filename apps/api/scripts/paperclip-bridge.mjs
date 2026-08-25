@@ -223,8 +223,8 @@ async function notifySalesAgent(previous, crm, agents) {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
-				source: "on_demand",
-				triggerDetail: "system",
+			source: "on_demand",
+			triggerDetail: "system",
 			reason:
 				"CRM sales data changed. Reconcile the V-OS revenue pipeline and update only work that requires action.",
 			payload: {
@@ -387,7 +387,7 @@ async function wakePaperclipViolet(config, inquiry, eventType) {
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			source: "on_demand",
-				triggerDetail: "system",
+			triggerDetail: "system",
 			reason:
 				"Own this V-OS lead lifecycle: verify CRM linkage, prepare the next follow-up and nurture action, create internal due tasks, and present every external engagement or escalation to Matthew for approval before sending. Keep Asina informed; send delivery risks to Robi.",
 			payload: {
