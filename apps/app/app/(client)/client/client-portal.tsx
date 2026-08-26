@@ -935,6 +935,10 @@ function PaymentDialog({
 		"CHECK" | "RTGS" | "ACH" | "DIRECT_TRANSFER"
 	>("DIRECT_TRANSFER");
 	const [currency, setCurrency] = useState<"USD" | "JMD">("USD");
+	const currencyAccounts = accounts.filter(
+		(item) => item.currency === currency,
+	);
+	const [paymentAccountId, setPaymentAccountId] = useState("");
 	const [transactionId, setTransactionId] = useState("");
 	const [transferredAt, setTransferredAt] = useState("");
 	const [senderBank, setSenderBank] = useState("");
@@ -945,7 +949,10 @@ function PaymentDialog({
 		size: number;
 		base64: string;
 	} | null>(null);
-	const account = accounts.find((item) => item.currency === currency) ?? null;
+	const account =
+		currencyAccounts.find((item) => item.id === paymentAccountId) ??
+		currencyAccounts[0] ??
+		null;
 	const submit = useMutation(
 		trpc.portal.submitInvoicePayment.mutationOptions({
 			onSuccess: async () => {
@@ -982,6 +989,7 @@ function PaymentDialog({
 							if (!canSubmit) return;
 							submit.mutate({
 								invoiceId: invoice.id,
+								paymentAccountId: account?.id as string,
 								method,
 								currency,
 								amountCents: Math.max(
@@ -1067,6 +1075,26 @@ function PaymentDialog({
 								</select>
 							</label>
 						</div>
+						{currencyAccounts.length > 1 ? (
+							<label
+								className="grid gap-1.5 text-sm"
+								htmlFor="receiving-account"
+							>
+								Receiving account
+								<select
+									id="receiving-account"
+									value={account?.id ?? ""}
+									onChange={(event) => setPaymentAccountId(event.target.value)}
+									className="h-10 rounded-md border border-white/10 bg-[#081008] px-3"
+								>
+									{currencyAccounts.map((item) => (
+										<option key={item.id} value={item.id}>
+											{item.label}
+										</option>
+									))}
+								</select>
+							</label>
+						) : null}
 
 						{account ? (
 							<section className="rounded-xl border border-[#7bff5a]/20 bg-gradient-to-br from-[#7bff5a]/10 to-[#55d9bd]/5 p-4">
@@ -1097,6 +1125,21 @@ function PaymentDialog({
 										value={account.branchCode ?? "—"}
 									/>
 									<BankDetail label="Currency" value={account.currency} />
+									{account.routingNumber ? (
+										<BankDetail
+											label="Routing number"
+											value={account.routingNumber}
+										/>
+									) : null}
+									{account.conversion ? (
+										<BankDetail label="Conversion" value={account.conversion} />
+									) : null}
+									{account.destination ? (
+										<BankDetail
+											label="Destination"
+											value={account.destination}
+										/>
+									) : null}
 								</div>
 							</section>
 						) : (

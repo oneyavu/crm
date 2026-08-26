@@ -32,6 +32,22 @@ type InvoiceDocumentData = {
 		unitPriceCents: number;
 		amountCents: number;
 	}>;
+	paymentAccounts: Array<{
+		id: string;
+		currency: string;
+		label: string;
+		bankName: string;
+		bankAddress: string | null;
+		branchName: string | null;
+		accountName: string;
+		accountNumber: string;
+		accountType: string | null;
+		swiftCode: string | null;
+		branchCode: string | null;
+		routingNumber: string | null;
+		conversion: string | null;
+		destination: string | null;
+	}>;
 };
 
 const TERMS = [
@@ -221,26 +237,58 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentData }) {
 				<div>
 					<div className="rounded-lg bg-[#f4f4f1] p-5">
 						<p className="font-semibold text-xs uppercase tracking-[0.18em]">
-							Offline payment
+							Direct transfer options
 						</p>
-						<p className="mt-2 font-semibold">USD Business Savings</p>
-						<div className="mt-3 grid grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-							<span className="text-[#666]">Bank</span>
-							<span>Scotiabank Jamaica</span>
-							<span className="text-[#666]">Branch</span>
-							<span>Junction Branch</span>
-							<span className="text-[#666]">Account name</span>
-							<span>VAYU LIMITED</span>
-							<span className="text-[#666]">Account number</span>
-							<span className="tabular-nums">000424765</span>
-							<span className="text-[#666]">Account type</span>
-							<span>Business Savings</span>
-							<span className="text-[#666]">Currency</span>
-							<span>USD</span>
-							<span className="text-[#666]">SWIFT / BIC</span>
-							<span>NOSCJMKNXXX</span>
-							<span className="text-[#666]">Branch code</span>
-							<span>22475</span>
+						<div className="mt-3 grid gap-4 sm:grid-cols-2">
+							{invoice.paymentAccounts.map((account) => (
+								<section
+									key={account.id}
+									className="rounded-md border border-[#171717]/10 bg-white p-3"
+								>
+									<p className="font-semibold text-xs">{account.label}</p>
+									<div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10px]">
+										<PaymentDetail label="Bank" value={account.bankName} />
+										<PaymentDetail
+											label="Bank address"
+											value={account.bankAddress}
+										/>
+										<PaymentDetail label="Branch" value={account.branchName} />
+										<PaymentDetail
+											label="Account name"
+											value={account.accountName}
+										/>
+										<PaymentDetail
+											label="Account number"
+											value={account.accountNumber}
+										/>
+										<PaymentDetail
+											label="Account type"
+											value={account.accountType}
+										/>
+										<PaymentDetail
+											label="Routing number"
+											value={account.routingNumber}
+										/>
+										<PaymentDetail
+											label="SWIFT / BIC"
+											value={account.swiftCode}
+										/>
+										<PaymentDetail
+											label="Branch code"
+											value={account.branchCode}
+										/>
+										<PaymentDetail label="Currency" value={account.currency} />
+										<PaymentDetail
+											label="Conversion"
+											value={account.conversion}
+										/>
+										<PaymentDetail
+											label="Destination"
+											value={account.destination}
+										/>
+									</div>
+								</section>
+							))}
 						</div>
 					</div>
 					<div className="mt-6">
@@ -276,5 +324,21 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceDocumentData }) {
 				</div>
 			</section>
 		</article>
+	);
+}
+
+function PaymentDetail({
+	label,
+	value,
+}: {
+	label: string;
+	value: string | null;
+}) {
+	if (!value) return null;
+	return (
+		<>
+			<span className="text-[#666]">{label}</span>
+			<span className="break-all tabular-nums">{value}</span>
+		</>
 	);
 }

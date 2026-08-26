@@ -11,7 +11,7 @@ import type { z } from "zod";
 import type { AuthedTrpcContext } from "../trpc/context.types";
 import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
 import {
-	paymentAccountCurrencyInput,
+	paymentAccountIdInput,
 	setAgentModelInput,
 	setResearchKeyInput,
 	upsertPaymentAccountInput,
@@ -63,11 +63,11 @@ export class SettingsRouter {
 		return this.settings.upsertPaymentAccount(input, ctx.user.id);
 	}
 
-	@Mutation({ input: paymentAccountCurrencyInput })
+	@Mutation({ input: paymentAccountIdInput })
 	async removePaymentAccount(
 		@Ctx() ctx: AuthedTrpcContext,
-		@Input() input: z.infer<typeof paymentAccountCurrencyInput>,
+		@Input() input: z.infer<typeof paymentAccountIdInput>,
 	) {
-		return this.settings.removePaymentAccount(input.currency, ctx.user.id);
+		return this.settings.removePaymentAccount(input.id, ctx.user.id);
 	}
 }

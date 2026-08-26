@@ -2506,53 +2506,61 @@ model SupportMessage {
 }
 
 model PaymentBankAccount {
-  id            String   @id @default(cuid())
-  currency      String   @unique
-  label         String
-  bankName      String
-  bankAddress   String?
-  branchName    String?
-  accountName   String
-  accountNumber String
-  accountType   String?
-  swiftCode     String?
-  branchCode    String?
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String                     @id @default(cuid())
+  currency           String
+  label              String
+  bankName           String
+  bankAddress        String?
+  branchName         String?
+  accountName        String
+  accountNumber      String
+  accountType        String?
+  swiftCode          String?
+  branchCode         String?
+  routingNumber      String?
+  conversion         String?
+  destination        String?
+  active             Boolean                    @default(true)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  paymentSubmissions InvoicePaymentSubmission[]
 
+  @@index([currency, active])
   @@map("paymentBankAccount")
 }
 
 model InvoicePaymentSubmission {
-  id                  String                  @id @default(cuid())
-  invoiceId           String
-  invoice             Invoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  companyId           String
-  company             Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  submittedByAccessId String
-  submittedByAccess   ClientPortalAccess      @relation(fields: [submittedByAccessId], references: [id], onDelete: Restrict)
-  method              TransferMethod
-  currency            String
-  amountCents         Int?
-  transactionId       String?
-  transferredAt       DateTime?
-  senderBank          String?
-  senderBranch        String?
-  attachmentName      String?
-  attachmentType      String?
-  attachmentSize      Int?
-  attachment          Bytes?
-  status              PaymentSubmissionStatus @default(PENDING_VERIFICATION)
-  reviewNote          String?
-  reviewedById        String?
-  reviewedBy          User?                   @relation("PaymentSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt          DateTime?
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
+  id                   String                  @id @default(cuid())
+  invoiceId            String
+  invoice              Invoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  companyId            String
+  company              Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submittedByAccessId  String
+  submittedByAccess    ClientPortalAccess      @relation(fields: [submittedByAccessId], references: [id], onDelete: Restrict)
+  paymentBankAccountId String?
+  paymentBankAccount   PaymentBankAccount?     @relation(fields: [paymentBankAccountId], references: [id], onDelete: SetNull)
+  method               TransferMethod
+  currency             String
+  amountCents          Int?
+  transactionId        String?
+  transferredAt        DateTime?
+  senderBank           String?
+  senderBranch         String?
+  attachmentName       String?
+  attachmentType       String?
+  attachmentSize       Int?
+  attachment           Bytes?
+  status               PaymentSubmissionStatus @default(PENDING_VERIFICATION)
+  reviewNote           String?
+  reviewedById         String?
+  reviewedBy           User?                   @relation("PaymentSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt           DateTime?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
   @@index([invoiceId, createdAt])
   @@index([companyId, status, createdAt])
+  @@index([paymentBankAccountId])
   @@map("invoicePaymentSubmission")
 }
 

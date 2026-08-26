@@ -15,8 +15,9 @@ import { requireWorkspaceAdmin } from "@/lib/session";
 
 const SCOTIABANK_SMALL_BUSINESS =
 	"https://jm.scotiabank.com/small-business.html";
+const SENDANA_SIGN_IN = "https://app.usesendana.com/signin";
 
-export const metadata: Metadata = { title: "BNS Online Banking" };
+export const metadata: Metadata = { title: "Banking" };
 export const instant = false;
 
 export default async function BankingPage() {
@@ -26,22 +27,59 @@ export default async function BankingPage() {
 		<PageShell>
 			<PageShellHeader>
 				<PageShellHeading>
-					<PageShellTitle>BNS Online Banking</PageShellTitle>
+					<PageShellTitle>Banking & payment platforms</PageShellTitle>
 					<PageShellDescription>
-						A secure handoff to Scotiabank Jamaica Small Business.
+						Admin-only access to VAYU&apos;s approved financial workspaces.
 					</PageShellDescription>
 				</PageShellHeading>
 			</PageShellHeader>
 
 			<PageShellContent>
-				<section className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-4">
+				<section className="mx-auto flex w-full max-w-6xl flex-col gap-8 py-4">
+					<div className="overflow-hidden rounded-2xl border border-border bg-card">
+						<div className="border-b border-border bg-[linear-gradient(120deg,rgba(123,255,90,0.16),rgba(85,217,189,0.09))] px-6 py-6 sm:px-9">
+							<p className="text-sm font-medium text-emerald-400">Sendana</p>
+							<h2 className="mt-2 font-medium text-2xl tracking-tight">
+								Payment operations
+							</h2>
+							<p className="mt-2 max-w-3xl text-muted-foreground text-sm leading-6">
+								Sign in and work in Sendana without leaving the V-OS banking
+								section. Credentials remain controlled by Sendana and are never
+								stored by the CRM.
+							</p>
+						</div>
+						<iframe
+							title="Sendana payment platform"
+							src={SENDANA_SIGN_IN}
+							className="h-[72svh] min-h-[620px] w-full bg-white"
+							allow="clipboard-read; clipboard-write"
+							sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+							referrerPolicy="strict-origin-when-cross-origin"
+						/>
+						<div className="flex flex-col gap-3 border-t border-border px-6 py-4 text-muted-foreground text-xs sm:flex-row sm:items-center sm:justify-between sm:px-9">
+							<p>
+								If Sendana blocks the embedded session, use its official secure
+								sign-in in a new tab.
+							</p>
+							<Button asChild variant="outline" size="sm">
+								<a
+									href={SENDANA_SIGN_IN}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									Open Sendana securely <Icon icon={Launch} />
+								</a>
+							</Button>
+						</div>
+					</div>
+
 					<div className="overflow-hidden rounded-2xl border border-border bg-card">
 						<div className="border-b border-border bg-[linear-gradient(120deg,rgba(123,255,90,0.16),rgba(85,217,189,0.09))] px-6 py-8 sm:px-9">
 							<p className="text-sm font-medium text-muted-foreground">
 								Scotiabank Jamaica
 							</p>
 							<h2 className="mt-2 max-w-2xl text-balance font-medium text-3xl tracking-tight sm:text-4xl">
-								Business banking from your VAYU workflow
+								Scotiabank business banking
 							</h2>
 							<p className="mt-4 max-w-2xl text-pretty text-muted-foreground leading-6">
 								Review Scotiabank small-business services, follow its links and

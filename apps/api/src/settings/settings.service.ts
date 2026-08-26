@@ -148,7 +148,7 @@ export class SettingsService {
 	async paymentAccounts(actorId: string) {
 		await this.assertAdmin(actorId);
 		return this.db.paymentBankAccount.findMany({
-			orderBy: { currency: "asc" },
+			orderBy: [{ currency: "asc" }, { label: "asc" }],
 		});
 	}
 
@@ -157,16 +157,15 @@ export class SettingsService {
 		actorId: string,
 	) {
 		await this.assertAdmin(actorId);
-		return this.db.paymentBankAccount.upsert({
-			where: { currency: input.currency },
-			create: input,
-			update: input,
-		});
+		const { id, ...data } = input;
+		return id
+			? this.db.paymentBankAccount.update({ where: { id }, data })
+			: this.db.paymentBankAccount.create({ data });
 	}
 
-	async removePaymentAccount(currency: "USD" | "JMD", actorId: string) {
+	async removePaymentAccount(id: string, actorId: string) {
 		await this.assertAdmin(actorId);
-		return this.db.paymentBankAccount.delete({ where: { currency } });
+		return this.db.paymentBankAccount.delete({ where: { id } });
 	}
 
 	private async assertAdmin(userId: string) {

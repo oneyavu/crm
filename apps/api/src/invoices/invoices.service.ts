@@ -116,6 +116,22 @@ type InvoiceDetail = Omit<
 			amountCents: number;
 		}
 	>;
+	paymentAccounts: Array<{
+		id: string;
+		currency: string;
+		label: string;
+		bankName: string;
+		bankAddress: string | null;
+		branchName: string | null;
+		accountName: string;
+		accountNumber: string;
+		accountType: string | null;
+		swiftCode: string | null;
+		branchCode: string | null;
+		routingNumber: string | null;
+		conversion: string | null;
+		destination: string | null;
+	}>;
 };
 
 @Injectable()
@@ -194,15 +210,37 @@ export class InvoicesService {
 		const companyIds = access.admin
 			? []
 			: await assignedCompanyIds(this.db, userId);
-		const row = await this.db.invoice.findFirst({
-			where: {
-				id,
-				...(access.admin ? {} : assignedInvoiceWhere(userId, companyIds)),
-			},
-			include: INVOICE_DETAIL_INCLUDE,
-		});
+		const [row, paymentAccounts] = await Promise.all([
+			this.db.invoice.findFirst({
+				where: {
+					id,
+					...(access.admin ? {} : assignedInvoiceWhere(userId, companyIds)),
+				},
+				include: INVOICE_DETAIL_INCLUDE,
+			}),
+			this.db.paymentBankAccount.findMany({
+				where: { active: true },
+				orderBy: [{ currency: "asc" }, { label: "asc" }],
+				select: {
+					id: true,
+					currency: true,
+					label: true,
+					bankName: true,
+					bankAddress: true,
+					branchName: true,
+					accountName: true,
+					accountNumber: true,
+					accountType: true,
+					swiftCode: true,
+					branchCode: true,
+					routingNumber: true,
+					conversion: true,
+					destination: true,
+				},
+			}),
+		]);
 		if (!row) throw new NotFoundException(`No invoice with id ${id}.`);
-		return serialize(row);
+		return { ...serialize(row), paymentAccounts };
 	}
 
 	async create(input: InvoiceCreateInput, userId: string) {
@@ -953,7 +991,9 @@ export class InvoicesService {
 	}
 }
 
-function serialize(row: InvoiceDetailRow): InvoiceDetail {
+function serialize(
+	row: InvoiceDetailRow,
+): Omit<InvoiceDetail, "paymentAccounts"> {
 	const {
 		subtotal,
 		tax,
@@ -1018,7 +1058,32 @@ function invoiceHtml(invoice: InvoiceDetail): string {
 				`<tr><td>${escapeHtml(line.description)}</td><td>${line.quantity}</td><td>${new Intl.NumberFormat("en", { style: "currency", currency: invoice.currency }).format(line.amountCents / 100)}</td></tr>`,
 		)
 		.join("");
-	return `<h1>VAYU invoice ${escapeHtml(invoice.number)}</h1><p>Thank you for working with VAYU. The total due is <strong>${money}</strong> by ${escapeHtml(invoice.dueDate.slice(0, 10))}.</p><table><thead><tr><th>Item</th><th>Quantity</th><th>Amount</th></tr></thead><tbody>${lines}</tbody></table>`;
+	const paymentInstructions = invoice.paymentAccounts
+		.map((account) => {
+			const fields = [
+				["Bank", account.bankName],
+				["Bank address", account.bankAddress],
+				["Branch", account.branchName],
+				["Account name", account.accountName],
+				["Account number", account.accountNumber],
+				["Account type", account.accountType],
+				["Routing number", account.routingNumber],
+				["SWIFT / BIC", account.swiftCode],
+				["Branch code", account.branchCode],
+				["Currency", account.currency],
+				["Conversion", account.conversion],
+				["Destination", account.destination],
+			]
+				.filter((entry): entry is [string, string] => Boolean(entry[1]))
+				.map(
+					([label, value]) =>
+						`<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</li>`,
+				)
+				.join("");
+			return `<h3>${escapeHtml(account.label)}</h3><ul>${fields}</ul>`;
+		})
+		.join("");
+	return `<h1>VAYU invoice ${escapeHtml(invoice.number)}</h1><p>Thank you for working with VAYU. The total due is <strong>${money}</strong> by ${escapeHtml(invoice.dueDate.slice(0, 10))}.</p><table><thead><tr><th>Item</th><th>Quantity</th><th>Amount</th></tr></thead><tbody>${lines}</tbody></table><h2>Direct transfer options</h2>${paymentInstructions}`;
 }
 
 function escapeHtml(value: string): string {

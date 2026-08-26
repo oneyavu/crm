@@ -373,6 +373,9 @@ export class PortalService {
 				accountType: true,
 				swiftCode: true,
 				branchCode: true,
+				routingNumber: true,
+				conversion: true,
+				destination: true,
 			},
 		});
 		const portfolio = await this.db.catalogItem.findMany({
@@ -480,7 +483,11 @@ export class PortalService {
 				select: { id: true, companyId: true },
 			}),
 			this.db.paymentBankAccount.findFirst({
-				where: { currency: input.currency, active: true },
+				where: {
+					id: input.paymentAccountId,
+					currency: input.currency,
+					active: true,
+				},
 				select: { id: true },
 			}),
 		]);
@@ -503,6 +510,7 @@ export class PortalService {
 				submittedByAccessId: access.id,
 				method: input.method,
 				currency: input.currency,
+				paymentBankAccountId: account.id,
 				amountCents: input.amountCents,
 				transactionId: input.transactionId || null,
 				transferredAt: input.transferredAt

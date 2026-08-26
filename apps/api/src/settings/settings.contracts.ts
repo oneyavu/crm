@@ -21,6 +21,7 @@ export const setResearchKeyInput = z.object({
 export type SetResearchKeyInput = z.infer<typeof setResearchKeyInput>;
 
 export const upsertPaymentAccountInput = z.object({
+	id: z.string().trim().min(1).optional(),
 	currency: z.enum(["USD", "JMD"]),
 	label: z.string().trim().min(2).max(100),
 	bankName: z.string().trim().min(2).max(160),
@@ -31,9 +32,12 @@ export const upsertPaymentAccountInput = z.object({
 	accountType: z.string().trim().max(100).nullable().optional(),
 	swiftCode: z.string().trim().max(40).nullable().optional(),
 	branchCode: z.string().trim().max(40).nullable().optional(),
+	routingNumber: z.string().trim().max(40).nullable().optional(),
+	conversion: z.string().trim().max(100).nullable().optional(),
+	destination: z.string().trim().max(160).nullable().optional(),
 	active: z.boolean(),
 });
 
-export const paymentAccountCurrencyInput = z.object({
-	currency: z.enum(["USD", "JMD"]),
+export const paymentAccountIdInput = z.object({
+	id: z.string().trim().min(1),
 });

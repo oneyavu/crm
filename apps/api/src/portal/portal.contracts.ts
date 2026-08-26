@@ -49,6 +49,7 @@ export const portalLiveChatInput = z.object({
 export const submitInvoicePaymentInput = z
 	.object({
 		invoiceId: z.string().min(1),
+		paymentAccountId: z.string().min(1),
 		method: z.enum(["CHECK", "RTGS", "ACH", "DIRECT_TRANSFER"]),
 		currency: z.enum(["USD", "JMD"]),
 		amountCents: z.number().int().positive().optional(),

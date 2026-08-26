@@ -79,7 +79,7 @@ const ITEMS: RailItem[] = [
 		match: "prefix",
 	},
 	{
-		title: "BNS Online Banking",
+		title: "Banking",
 		href: "/banking",
 		icon: Receipt,
 		match: "prefix",

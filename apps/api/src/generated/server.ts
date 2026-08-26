@@ -34,7 +34,7 @@ import { inquiryListInput, inquiryUpdateInput, connectionUpdateInput, platformKi
 import { portalCompanyInput, portalGrantInput, portalAccessInput, portalInviteInput, createServiceRequestInput, serviceRequestReplyInput, serviceRequestStatusInput, portalAiChatInput, portalLiveChatInput, submitInvoicePaymentInput } from "../portal/portal.contracts";
 import { projectListInput, projectIdInput, projectCreateInput, projectUpdateInput, projectTaskCreateInput, projectTaskUpdateInput, projectTaskIdInput, projectPhaseCreateInput, projectPhaseUpdateInput, projectTaskCommentCreateInput, projectTaskDependencyInput, projectTimeEntryCreateInput, projectManagerSyncInput } from "../projects/projects.contracts";
 import { recordListInput, recordCreateInput, recordUpdateInput, recordIdInput } from "../records/records.contracts";
-import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountCurrencyInput } from "../settings/settings.contracts";
+import { setAgentModelInput, setResearchKeyInput, upsertPaymentAccountInput, paymentAccountIdInput } from "../settings/settings.contracts";
 import { ssoProviderListInput, registerSsoProviderInput, deleteSsoProviderInput } from "../sso/sso.contracts";
 import { saveWidgetInput, updateSupportConversationInput, supportReplyInput, supportFormalizeInput, supportConversationInput } from "../support/support.contracts";
 import { memberListInput, updateWorkspaceInput, setMemberRoleInput, memberIdInput, inviteMemberInput, invitationInput } from "../workspace/workspace.contracts";
@@ -701,7 +701,7 @@ const appRouter = t.router({
       .input(upsertPaymentAccountInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["upsertPaymentAccount"]>>),
     removePaymentAccount: publicProcedure
-      .input(paymentAccountCurrencyInput)
+      .input(paymentAccountIdInput)
       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as unknown as Awaited<ReturnType<SettingsRouter["removePaymentAccount"]>>)
     }),
   sso: t.router({

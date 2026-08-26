@@ -16,6 +16,7 @@ import { useTRPC } from "@/lib/trpc/client";
 
 type Currency = "USD" | "JMD";
 type Account = {
+	id?: string;
 	currency: Currency;
 	label: string;
 	bankName: string;
@@ -26,6 +27,9 @@ type Account = {
 	accountType: string | null;
 	swiftCode: string | null;
 	branchCode: string | null;
+	routingNumber: string | null;
+	conversion: string | null;
+	destination: string | null;
 	active: boolean;
 };
 
@@ -40,12 +44,16 @@ const blank = (currency: Currency): Account => ({
 	accountType: "",
 	swiftCode: "",
 	branchCode: "",
+	routingNumber: "",
+	conversion: "",
+	destination: "",
 	active: true,
 });
 
 export function PaymentOptions() {
 	const trpc = useTRPC();
 	const accounts = useQuery(trpc.settings.paymentAccounts.queryOptions());
+	const [creating, setCreating] = useState<Currency | null>(null);
 	return (
 		<div className="flex max-w-4xl flex-col gap-6">
 			<Card className="overflow-hidden border-[#7bff5a]/20">
@@ -58,17 +66,39 @@ export function PaymentOptions() {
 					</CardDescription>
 				</CardHeader>
 			</Card>
-			{(["USD", "JMD"] as const).map((currency) => (
+			{accounts.data?.map((account) => (
 				<PaymentAccountForm
-					key={currency}
-					currency={currency}
-					account={
-						(accounts.data?.find((item) => item.currency === currency) as
-							| Account
-							| undefined) ?? null
-					}
+					key={account.id}
+					currency={account.currency as Currency}
+					account={account as Account}
 				/>
 			))}
+			{creating ? (
+				<PaymentAccountForm
+					key={`new-${creating}`}
+					currency={creating}
+					account={null}
+					onCreated={() => setCreating(null)}
+				/>
+			) : null}
+			<div className="flex flex-wrap gap-3">
+				<Button
+					type="button"
+					variant="outline"
+					onClick={() => setCreating("USD")}
+					disabled={creating !== null}
+				>
+					Add USD receiving account
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={() => setCreating("JMD")}
+					disabled={creating !== null}
+				>
+					Add JMD receiving account
+				</Button>
+			</div>
 		</div>
 	);
 }
@@ -76,9 +106,11 @@ export function PaymentOptions() {
 function PaymentAccountForm({
 	currency,
 	account,
+	onCreated,
 }: {
 	currency: Currency;
 	account: Account | null;
+	onCreated?: () => void;
 }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
@@ -91,6 +123,18 @@ function PaymentAccountForm({
 					queryKey: trpc.settings.paymentAccounts.queryKey(),
 				});
 				toast.success(`${currency} payment instructions saved.`);
+				onCreated?.();
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+	const remove = useMutation(
+		trpc.settings.removePaymentAccount.mutationOptions({
+			onSuccess: async () => {
+				await queryClient.invalidateQueries({
+					queryKey: trpc.settings.paymentAccounts.queryKey(),
+				});
+				toast.success("Payment account removed.");
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -103,7 +147,9 @@ function PaymentAccountForm({
 			<CardHeader>
 				<div className="flex items-start justify-between gap-4">
 					<div>
-						<CardTitle>{currency} direct transfer</CardTitle>
+						<CardTitle>
+							{account?.label ?? `New ${currency} direct transfer`}
+						</CardTitle>
 						<CardDescription>
 							{account ? "Configured" : "Not configured yet"}
 						</CardDescription>
@@ -176,7 +222,22 @@ function PaymentAccountForm({
 						value={draft.branchCode ?? ""}
 						onChange={(value) => set("branchCode", value)}
 					/>
-					<div className="flex items-end sm:col-span-2">
+					<PaymentField
+						label="Routing number"
+						value={draft.routingNumber ?? ""}
+						onChange={(value) => set("routingNumber", value)}
+					/>
+					<PaymentField
+						label="Conversion / settlement"
+						value={draft.conversion ?? ""}
+						onChange={(value) => set("conversion", value)}
+					/>
+					<PaymentField
+						label="Destination reference"
+						value={draft.destination ?? ""}
+						onChange={(value) => set("destination", value)}
+					/>
+					<div className="flex items-end gap-3 sm:col-span-2">
 						<Button
 							type="submit"
 							disabled={
@@ -189,6 +250,19 @@ function PaymentAccountForm({
 						>
 							{save.isPending ? "Saving…" : `Save ${currency} instructions`}
 						</Button>
+						{account?.id ? (
+							<Button
+								type="button"
+								variant="destructive"
+								disabled={remove.isPending}
+								onClick={() => {
+									if (window.confirm(`Permanently remove ${account.label}?`))
+										remove.mutate({ id: account.id as string });
+								}}
+							>
+								Delete account
+							</Button>
+						) : null}
 					</div>
 				</form>
 			</CardContent>
